@@ -5,13 +5,12 @@
 /// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
-
 use async_trait::async_trait;
 use core::{cmp, fmt};
 use histogram::Histogram;
 use std::collections::HashMap;
 use std::ops::AddAssign;
-use std::time::{Instant};
+use std::time::Instant;
 
 pub struct BenchRun {
     pub bench_begin: Instant,
@@ -78,19 +77,17 @@ impl fmt::Display for BenchRun {
             self.total_bytes as f64 / elapsed.as_secs_f64()
         )?;
 
-        writeln!(f, "")?;
+        writeln!(f)?;
 
         let mut pairs: Vec<(String, i32)> =
             self.summary.iter().map(|(k, v)| (k.clone(), *v)).collect();
 
         pairs.sort_by(|a, b| {
             let d = b.1 - a.1;
-            if d > 0 {
-                cmp::Ordering::Greater
-            } else if d < 0 {
-                cmp::Ordering::Less
-            } else {
-                a.0.cmp(&b.0)
+            match d {
+                _ if d > 0 => cmp::Ordering::Greater,
+                _ if d < 0 => cmp::Ordering::Less,
+                _ => a.0.cmp(&b.0),
             }
         });
 
@@ -99,7 +96,7 @@ impl fmt::Display for BenchRun {
             writeln!(f, "{}: {}", pair.0, pair.1)?;
         }
 
-        writeln!(f, "")?;
+        writeln!(f)?;
 
         writeln!(
             f,

@@ -5,7 +5,6 @@
 /// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
-
 use crate::http_bench_session::{HttpBenchmark, HttpBenchmarkBuilder};
 use clap::clap_app;
 use leaky_bucket::LeakyBucket;
@@ -95,11 +94,9 @@ impl BenchmarkConfig {
 }
 
 fn parse_num<F: FromStr>(s: &str) -> F {
-    let value = s
-        .parse()
+    s.parse()
         .map_err(|_| panic!("Cannot parse: {}", s))
-        .unwrap();
-    value
+        .unwrap()
 }
 
 fn build_rate_limiter(rate_per_second: f64) -> Arc<LeakyBucket> {
