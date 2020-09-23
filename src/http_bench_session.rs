@@ -79,6 +79,8 @@ mod tests {
     use crate::bench_session::BenchClient;
     use crate::http_bench_session::{HttpBenchmark, HttpBenchmarkBuilder};
     use mockito::mock;
+    use std::time::Duration;
+    use tokio::time::timeout;
 
     #[tokio::test]
     async fn test_success_request() {
@@ -128,11 +130,11 @@ mod tests {
         let http_bench: HttpBenchmark = HttpBenchmarkBuilder::default()
             .url(format!("{}/1", url))
             .tunnel(None)
-            .ignore_cert(true)
-            .conn_reuse(true)
-            .store_cookies(true)
+            .ignore_cert(false)
+            .conn_reuse(false)
+            .store_cookies(false)
             .http2_only(false)
-            .verbose(false)
+            .verbose(true)
             .build()
             .unwrap();
 
@@ -144,5 +146,37 @@ mod tests {
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
         assert_eq!("500 Internal Server Error".to_string(), stats.status);
+    }
+
+    #[tokio::test]
+    async fn test_only_http2() {
+        let body = "world";
+
+        let _m = mock("GET", "/1")
+            .with_status(500)
+            .with_header("content-type", "text/plain")
+            .with_body(body)
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+        let http_bench: HttpBenchmark = HttpBenchmarkBuilder::default()
+            .url(format!("{}/1", url))
+            .tunnel(None)
+            .ignore_cert(false)
+            .conn_reuse(false)
+            .store_cookies(false)
+            .http2_only(true)
+            .verbose(true)
+            .build()
+            .unwrap();
+
+        let client = http_bench.build_client().expect("Client is built");
+        let result = timeout(Duration::from_secs(1), http_bench.send_request(&client)).await;
+
+        assert!(
+            result.is_err(),
+            "Expected to fail as h2 is not supported by the endpoint"
+        );
     }
 }

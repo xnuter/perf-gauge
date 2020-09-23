@@ -1,3 +1,7 @@
+![Clippy/Fmt](https://github.com/xnuter/http-tunnel/workflows/Clippy/Fmt/badge.svg)
+![Tests](https://github.com/xnuter/http-tunnel/workflows/Tests/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/xnuter/service-benchmark/badge.svg?branch=master)](https://coveralls.io/github/xnuter/service-benchmark?branch=master)
+
 Overview
 ========
 
