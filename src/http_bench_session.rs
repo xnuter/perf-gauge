@@ -73,3 +73,76 @@ impl BenchClient for HttpBenchmark {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::bench_session::BenchClient;
+    use crate::http_bench_session::{HttpBenchmark, HttpBenchmarkBuilder};
+    use mockito::mock;
+
+    #[tokio::test]
+    async fn test_success_request() {
+        let body = "world";
+
+        let _m = mock("GET", "/1")
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body(body)
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+        let http_bench: HttpBenchmark = HttpBenchmarkBuilder::default()
+            .url(format!("{}/1", url))
+            .tunnel(None)
+            .ignore_cert(true)
+            .conn_reuse(true)
+            .store_cookies(true)
+            .http2_only(false)
+            .verbose(false)
+            .build()
+            .unwrap();
+
+        let client = http_bench.build_client().expect("Client is built");
+        let result = http_bench.send_request(&client).await;
+
+        assert!(result.is_ok());
+        let stats = result.unwrap();
+        println!("{:?}", stats);
+        assert_eq!(body.len(), stats.bytes_processed);
+        assert_eq!("200 OK".to_string(), stats.status);
+    }
+
+    #[tokio::test]
+    async fn test_failed_request() {
+        let body = "world";
+
+        let _m = mock("GET", "/1")
+            .with_status(500)
+            .with_header("content-type", "text/plain")
+            .with_body(body)
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+        let http_bench: HttpBenchmark = HttpBenchmarkBuilder::default()
+            .url(format!("{}/1", url))
+            .tunnel(None)
+            .ignore_cert(true)
+            .conn_reuse(true)
+            .store_cookies(true)
+            .http2_only(false)
+            .verbose(false)
+            .build()
+            .unwrap();
+
+        let client = http_bench.build_client().expect("Client is built");
+        let result = http_bench.send_request(&client).await;
+
+        assert!(result.is_ok());
+        let stats = result.unwrap();
+        println!("{:?}", stats);
+        assert_eq!(body.len(), stats.bytes_processed);
+        assert_eq!("500 Internal Server Error".to_string(), stats.status);
+    }
+}

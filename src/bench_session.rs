@@ -77,43 +77,140 @@ impl fmt::Display for BenchRun {
             self.total_bytes as f64 / elapsed.as_secs_f64()
         )?;
 
-        writeln!(f)?;
+        if !self.summary.is_empty() {
+            writeln!(f)?;
 
-        let mut pairs: Vec<(String, i32)> =
-            self.summary.iter().map(|(k, v)| (k.clone(), *v)).collect();
+            let mut pairs: Vec<(String, i32)> =
+                self.summary.iter().map(|(k, v)| (k.clone(), *v)).collect();
 
-        pairs.sort_by(|a, b| {
-            let d = b.1 - a.1;
-            match d {
-                _ if d > 0 => cmp::Ordering::Greater,
-                _ if d < 0 => cmp::Ordering::Less,
-                _ => a.0.cmp(&b.0),
+            pairs.sort_by(|a, b| {
+                let d = b.1 - a.1;
+                match d {
+                    1..=0x7fffffff => cmp::Ordering::Greater,
+                    0 => a.0.cmp(&b.0),
+                    _ => cmp::Ordering::Less,
+                }
+            });
+
+            writeln!(f, "Summary:")?;
+            for pair in pairs {
+                writeln!(f, "{}: {}", pair.0, pair.1)?;
             }
-        });
-
-        writeln!(f, "Summary:")?;
-        for pair in pairs {
-            writeln!(f, "{}: {}", pair.0, pair.1)?;
         }
 
-        writeln!(f)?;
+        if self.latencies.entries() > 0 {
+            writeln!(f)?;
+            writeln!(
+                f,
+                "Percentiles: p50: {}µs p90: {}µs p99: {}µs p99.9: {}µs",
+                self.latencies.percentile(50.0).unwrap(),
+                self.latencies.percentile(90.0).unwrap(),
+                self.latencies.percentile(99.0).unwrap(),
+                self.latencies.percentile(99.9).unwrap(),
+            )?;
 
-        writeln!(
-            f,
-            "Percentiles: p50: {}µs p90: {}µs p99: {}µs p99.9: {} µs",
-            self.latencies.percentile(50.0).unwrap(),
-            self.latencies.percentile(90.0).unwrap(),
-            self.latencies.percentile(99.0).unwrap(),
-            self.latencies.percentile(99.9).unwrap(),
-        )?;
+            writeln!(
+                f,
+                "Latency (µs): Min: {}µs Avg: {}µs Max: {}µs StdDev: {}µs",
+                self.latencies.minimum().unwrap(),
+                self.latencies.mean().unwrap(),
+                self.latencies.maximum().unwrap(),
+                self.latencies.stddev().unwrap(),
+            )
+        } else {
+            writeln!(f)
+        }
+    }
+}
 
-        writeln!(
-            f,
-            "Latency (µs): Min: {}µs Avg: {}µs Max: {}µs StdDev: {}µs",
-            self.latencies.minimum().unwrap(),
-            self.latencies.mean().unwrap(),
-            self.latencies.maximum().unwrap(),
-            self.latencies.stddev().unwrap(),
-        )
+#[cfg(test)]
+mod tests {
+    use crate::bench_session::BenchRun;
+
+    #[test]
+    fn test_codes() {
+        let mut bench_run = BenchRun::new();
+        bench_run.increment("200 OK".to_string());
+        bench_run.increment("200 OK".to_string());
+        bench_run.increment("400 BAD_REQUEST".to_string());
+        bench_run.increment("502 BAD_GATEWAY".to_string());
+        bench_run.increment("502 BAD_GATEWAY".to_string());
+        bench_run.increment("502 BAD_GATEWAY".to_string());
+
+        let as_str = bench_run.to_string();
+        assert!(as_str.contains("400 BAD_REQUEST: 1"));
+        assert!(as_str.contains("200 OK: 2"));
+        assert!(as_str.contains("502 BAD_GATEWAY: 3"));
+    }
+
+    #[test]
+    fn test_latencies() {
+        let mut bench_run = BenchRun::new();
+        for i in 0..1000 {
+            bench_run.report_latency(i).expect("Shouldn't fail");
+        }
+
+        let as_str = bench_run.to_string();
+
+        println!("{}", as_str);
+
+        assert!(as_str.contains("p50: 500µs "));
+        assert!(as_str.contains("p90: 900µs "));
+        assert!(as_str.contains("p99: 990µs "));
+        assert!(as_str.contains("p99.9: 999µs"));
+
+        assert!(as_str.contains("Min: 0µs "));
+        assert!(as_str.contains("Avg: 500µs "));
+        assert!(as_str.contains("Max: 999µs "));
+        assert!(as_str.contains("StdDev: 289µs"));
+    }
+
+    #[test]
+    fn test_merge() {
+        let mut b1 = BenchRun::new();
+        let mut b2 = BenchRun::new();
+
+        b1.total_bytes += 1;
+        b2.total_bytes += 10;
+
+        b1.total_requests += 1;
+        b2.total_requests += 10;
+
+        for i in 0..500 {
+            b1.report_latency(i).expect("Shouldn't fail");
+        }
+        for i in 500..1000 {
+            b2.report_latency(i).expect("Shouldn't fail");
+        }
+
+        b1.increment("200 OK".to_string());
+        b2.increment("200 OK".to_string());
+        b2.increment("400 BAD_REQUEST".to_string());
+        b2.increment("502 BAD_GATEWAY".to_string());
+        b1.increment("502 BAD_GATEWAY".to_string());
+        b2.increment("502 BAD_GATEWAY".to_string());
+
+        b1.merge(&b2);
+
+        let as_str = b1.to_string();
+
+        println!("{}", as_str);
+
+        assert!(as_str.contains("Total bytes: 11."));
+        assert!(as_str.contains("Bytes per request: 1.000."));
+
+        assert!(as_str.contains("400 BAD_REQUEST: 1"));
+        assert!(as_str.contains("200 OK: 2"));
+        assert!(as_str.contains("502 BAD_GATEWAY: 3"));
+
+        assert!(as_str.contains("p50: 500µs "));
+        assert!(as_str.contains("p90: 900µs "));
+        assert!(as_str.contains("p99: 990µs "));
+        assert!(as_str.contains("p99.9: 999µs"));
+
+        assert!(as_str.contains("Min: 0µs "));
+        assert!(as_str.contains("Avg: 500µs "));
+        assert!(as_str.contains("Max: 999µs "));
+        assert!(as_str.contains("StdDev: 289µs"));
     }
 }
