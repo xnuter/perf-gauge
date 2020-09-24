@@ -5,14 +5,14 @@
 /// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
-use crate::bench_session::{BenchClient, RequestStats, RequestStatsBuilder};
+use crate::bench_session::{BenchmarkProtocolAdapter, RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
 use log::error;
 use reqwest::Proxy;
 use std::time::Duration;
 
 #[derive(Builder, Deserialize, Clone, Debug)]
-pub struct HttpBenchmark {
+pub struct HttpBenchAdapter {
     url: String,
     tunnel: Option<String>,
     ignore_cert: bool,
@@ -23,7 +23,7 @@ pub struct HttpBenchmark {
 }
 
 #[async_trait]
-impl BenchClient for HttpBenchmark {
+impl BenchmarkProtocolAdapter for HttpBenchAdapter {
     type Client = reqwest::Client;
 
     fn build_client(&self) -> Result<Self::Client, String> {
@@ -76,8 +76,8 @@ impl BenchClient for HttpBenchmark {
 
 #[cfg(test)]
 mod tests {
-    use crate::bench_session::BenchClient;
-    use crate::http_bench_session::{HttpBenchmark, HttpBenchmarkBuilder};
+    use crate::bench_session::BenchmarkProtocolAdapter;
+    use crate::http_bench_session::HttpBenchAdapterBuilder;
     use mockito::mock;
     use std::time::Duration;
     use tokio::time::timeout;
@@ -94,7 +94,7 @@ mod tests {
 
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
-        let http_bench: HttpBenchmark = HttpBenchmarkBuilder::default()
+        let http_bench = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
             .tunnel(None)
             .ignore_cert(true)
@@ -127,7 +127,7 @@ mod tests {
 
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
-        let http_bench: HttpBenchmark = HttpBenchmarkBuilder::default()
+        let http_bench = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
             .tunnel(None)
             .ignore_cert(false)
@@ -160,7 +160,7 @@ mod tests {
 
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
-        let http_bench: HttpBenchmark = HttpBenchmarkBuilder::default()
+        let http_bench = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
             .tunnel(None)
             .ignore_cert(false)

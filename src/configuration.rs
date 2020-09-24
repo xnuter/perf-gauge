@@ -5,7 +5,7 @@
 /// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
-use crate::http_bench_session::{HttpBenchmark, HttpBenchmarkBuilder};
+use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
 use clap::clap_app;
 use leaky_bucket::LeakyBucket;
 use log::info;
@@ -16,7 +16,7 @@ use tokio::io;
 
 #[derive(Clone, Debug)]
 pub enum BenchmarkMode {
-    HTTP(HttpBenchmark),
+    HTTP(HttpBenchAdapter),
 }
 
 #[derive(Clone, Builder, Debug)]
@@ -24,6 +24,7 @@ pub struct BenchmarkConfig {
     pub verbose: bool,
     pub number_of_requests: usize,
     pub concurrency: usize,
+    /// Rate limiting is global per app, so we share the same instance across multiple threads.
     pub rate_limiter: Arc<LeakyBucket>,
     pub mode: BenchmarkMode,
 }
@@ -60,7 +61,7 @@ impl BenchmarkConfig {
         let verbose = matches.is_present("VERBOSE");
 
         let mode = if let Some(config) = matches.subcommand_matches("http") {
-            let http_config = HttpBenchmarkBuilder::default()
+            let http_config = HttpBenchAdapterBuilder::default()
                 .url(
                     config
                         .value_of("TARGET")
@@ -122,8 +123,6 @@ fn build_rate_limiter(rate_per_second: f64) -> Arc<LeakyBucket> {
 
     Arc::new(
         LeakyBucket::builder()
-            .max(1_000_000_000)
-            .tokens(0)
             .refill_amount(amount as usize)
             .refill_interval(interval)
             .build()

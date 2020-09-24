@@ -1,11 +1,12 @@
-![Clippy/Fmt](https://github.com/xnuter/http-tunnel/workflows/Clippy/Fmt/badge.svg)
-![Tests](https://github.com/xnuter/http-tunnel/workflows/Tests/badge.svg)
+![Clippy/Fmt](https://github.com/xnuter/service-benchmark/workflows/Clippy/Fmt/badge.svg)
+![Tests](https://github.com/xnuter/service-benchmark/workflows/Tests/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/xnuter/service-benchmark/badge.svg?branch=master)](https://coveralls.io/github/xnuter/service-benchmark?branch=master)
 
 Overview
 ========
 
-Benchmarking tool for network services. Currently, limited to HTTP/1.1 only (over TCP or TLS).
+Benchmarking tool for network services. Currently, limited to HTTP only (H1 or H2, over TCP or TLS).
+However, it's easily extendable to other protocols.
 
 Usage
 ======
@@ -64,12 +65,23 @@ Example:
 Test an endpoint:
 
 ```
-./target/release/service-benchmark -c 4 -n 50000 http https://my-local-nginx.org/10kb --ignore_cert --conn_reuse
+./target/release/service-benchmark -c 4 -n 50000 \
+                                   http https://my-local-nginx.org/10kb --ignore_cert --conn_reuse
 
 ```
 
 via an HTTP tunnel:
 
 ```
-./target/release/service-benchmark -c 4 -n 50000 http https://my-local-nginx.org/10kb --tunnel http://localhost:8080 --ignore_cert --conn_reuse
+./target/release/service-benchmark -c 4 -n 50000 \
+                                    http https://my-local-nginx.org/10kb \
+                                    --tunnel http://localhost:8080 --ignore_cert --conn_reuse
+```
+
+With a given rate of requests (1,000 RPS):
+
+```
+./target/release/service-benchmark -c 4 -r 1000 -n 50000 \
+                                    http https://my-local-nginx.org/10kb \
+                                    --tunnel http://localhost:8080 --ignore_cert --conn_reuse
 ```

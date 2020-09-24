@@ -1,3 +1,4 @@
+use crate::configuration::BenchmarkConfig;
 /// Copyright 2020 Developers of the service-benchmark project.
 ///
 /// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -8,6 +9,7 @@
 use async_trait::async_trait;
 use core::{cmp, fmt};
 use histogram::Histogram;
+use log::warn;
 use std::collections::HashMap;
 use std::ops::AddAssign;
 use std::time::Instant;
@@ -27,7 +29,7 @@ pub struct RequestStats {
 }
 
 #[async_trait]
-pub trait BenchClient {
+pub trait BenchmarkProtocolAdapter {
     type Client;
 
     fn build_client(&self) -> Result<Self::Client, String>;
@@ -61,6 +63,63 @@ impl BenchRun {
         for (k, v) in other.summary.iter() {
             self.summary.entry(k.clone()).or_insert(0).add_assign(v);
         }
+    }
+
+    pub async fn send_load(
+        index: usize,
+        benchmark_config: &BenchmarkConfig,
+        bench_protocol_adapter: &impl BenchmarkProtocolAdapter,
+        request_count: usize,
+    ) -> Result<Self, String> {
+        let mut bench_run = Self::new();
+
+        let client = bench_protocol_adapter.build_client()?;
+
+        let mut passed_seconds = 0;
+        for i in 0..request_count {
+            benchmark_config
+                .rate_limiter
+                .acquire_one()
+                .await
+                .expect("Unexpected LeakyBucket.acquire error");
+
+            let start = Instant::now();
+
+            match bench_protocol_adapter.send_request(&client).await {
+                Ok(stats) => {
+                    bench_run.increment(stats.status);
+                    bench_run.total_bytes += stats.bytes_processed;
+                }
+                Err(message) => {
+                    bench_run.increment(message);
+                }
+            };
+
+            bench_run.total_requests += 1;
+
+            let after_response = Instant::now();
+            let elapsed_us = after_response.duration_since(start).as_micros() as u64;
+
+            let duration_since_start = after_response.duration_since(bench_run.bench_begin);
+            if duration_since_start.as_secs() > passed_seconds {
+                passed_seconds = duration_since_start.as_secs();
+                println!(
+                    "Thread {}: sent {} requests. Elapsed: {:?}",
+                    index,
+                    i + 1,
+                    duration_since_start
+                );
+            }
+
+            match bench_run.report_latency(elapsed_us) {
+                Ok(_) => {}
+                Err(e) => {
+                    warn!("Cannot add histogram value {}. Error: {}", elapsed_us, e);
+                }
+            }
+        }
+
+        Ok(bench_run)
     }
 }
 
@@ -126,6 +185,13 @@ impl fmt::Display for BenchRun {
 #[cfg(test)]
 mod tests {
     use crate::bench_session::BenchRun;
+    use crate::configuration::BenchmarkConfigBuilder;
+    use crate::configuration::BenchmarkMode::HTTP;
+    use crate::http_bench_session::HttpBenchAdapterBuilder;
+    use leaky_bucket::LeakyBucket;
+    use mockito::mock;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn test_codes() {
@@ -212,5 +278,67 @@ mod tests {
         assert!(as_str.contains("Avg: 500µs "));
         assert!(as_str.contains("Max: 999µs "));
         assert!(as_str.contains("StdDev: 289µs"));
+    }
+
+    #[tokio::test]
+    async fn test_send_load() {
+        let body = "world";
+
+        let request_count = 10;
+
+        let _m = mock("GET", "/1")
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body(body)
+            .expect(request_count)
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+        let http_adapter = HttpBenchAdapterBuilder::default()
+            .url(format!("{}/1", url))
+            .tunnel(None)
+            .ignore_cert(false)
+            .conn_reuse(false)
+            .store_cookies(false)
+            .http2_only(false)
+            .verbose(true)
+            .build()
+            .unwrap();
+
+        let refill_interval = Duration::from_millis(100);
+        let rate_limit = LeakyBucket::builder()
+            .refill_amount(1)
+            .refill_interval(refill_interval)
+            .build()
+            .expect("LeakyBucket builder failed");
+
+        let benchmark_config = BenchmarkConfigBuilder::default()
+            .rate_limiter(Arc::new(rate_limit))
+            .number_of_requests(request_count)
+            .concurrency(1)
+            .verbose(false)
+            .mode(HTTP(http_adapter.clone()))
+            .build()
+            .expect("BenchmarkConfig failed");
+
+        let start = Instant::now();
+
+        let bench_result =
+            BenchRun::send_load(0, &benchmark_config, &http_adapter, request_count).await;
+
+        assert!(bench_result.is_ok());
+        let stats = bench_result.unwrap();
+        println!("{}", stats);
+
+        let elapsed = Instant::now().duration_since(start).as_secs_f64();
+        let time_delta = elapsed - refill_interval.as_secs_f64() * request_count as f64;
+        assert!(time_delta.abs() < refill_interval.as_secs_f64() * 2.);
+
+        assert_eq!(body.len() * request_count, stats.total_bytes);
+        assert_eq!(request_count, stats.total_requests);
+        assert!(stats
+            .to_string()
+            .contains(&format!("200 OK: {}", request_count)));
     }
 }
