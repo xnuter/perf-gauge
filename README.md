@@ -73,15 +73,32 @@ Test an endpoint:
 via an HTTP tunnel:
 
 ```
-./target/release/service-benchmark -c 4 -n 50000 \
+$ ./target/release/service-benchmark -c 4 -n 50000 \
                                     http https://my-local-nginx.org/10kb \
                                     --tunnel http://localhost:8080 --ignore_cert --conn_reuse
+......
+Elapsed 14.829113573s, Total bytes: 500000000. Bytes per request: 10000.000. Per second: 33717457.051
+
+Summary:
+200 OK: 50000
+
+Percentiles: p50: 552µs p90: 817µs p99: 1240µs p99.9: 1806µs
+Latency (µs): Min: 245µs Avg: 592µs Max: 5800µs StdDev: 191µs
+
 ```
 
 With a given rate of requests (1,000 RPS):
 
 ```
-./target/release/service-benchmark -c 4 -r 1000 -n 50000 \
+$./target/release/service-benchmark -c 4 -r 1000 -n 50000 \
                                     http https://my-local-nginx.org/10kb \
                                     --tunnel http://localhost:8080 --ignore_cert --conn_reuse
+......
+Elapsed 50.096235689s, Total bytes: 500000000. Bytes per request: 10000.000. Per second: 9980789.836
+
+Summary:
+200 OK: 50000
+
+Percentiles: p50: 327µs p90: 545µs p99: 839µs p99.9: 1232µs
+Latency (µs): Min: 128µs Avg: 367µs Max: 33653µs StdDev: 249µs
 ```
