@@ -1,15 +1,16 @@
-/// Copyright 2020 Developers of the service-benchmark project.
+use crate::bench_run::BenchmarkProtocolAdapter;
+/// Copyright 2020 Developers of the perf-gauge project.
 ///
 /// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 /// https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
 /// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
-use crate::bench_session::{BenchmarkProtocolAdapter, RequestStats, RequestStatsBuilder};
+use crate::metrics::{RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
 use log::error;
-use reqwest::Proxy;
-use std::time::Duration;
+use reqwest::{Proxy, Request};
+use std::time::{Duration, Instant};
 
 #[derive(Builder, Deserialize, Clone, Debug)]
 pub struct HttpBenchAdapter {
@@ -29,7 +30,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
     fn build_client(&self) -> Result<Self::Client, String> {
         let mut client_builder = reqwest::Client::builder()
             .danger_accept_invalid_certs(self.ignore_cert)
-            .user_agent("service-benchmark, v0.1.0")
+            .user_agent("perf-gauge, v0.1.0")
             .connection_verbose(self.verbose)
             .connect_timeout(Duration::from_secs(10));
 
@@ -49,35 +50,57 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
         client_builder.build().map_err(|e| e.to_string())
     }
 
-    async fn send_request(&self, client: &Self::Client) -> Result<RequestStats, String> {
-        let request = client
-            .get(&self.url.clone())
-            .build()
-            .expect("Error building request");
+    async fn send_request(&self, client: &Self::Client) -> RequestStats {
+        let start = Instant::now();
+
+        let request = self.build_request(client);
 
         let response = client.execute(request).await;
 
         match response {
-            Ok(r) => Ok(RequestStatsBuilder::default()
+            Ok(r) => RequestStatsBuilder::default()
                 .bytes_processed(r.content_length().unwrap_or(0) as usize)
                 .status(r.status().to_string())
+                .is_success(r.status().is_success())
+                .duration(Instant::now().duration_since(start))
                 .build()
-                .expect("RequestStatsBuilder failed")),
+                .expect("RequestStatsBuilder failed"),
             Err(e) => {
                 error!("Error sending request: {}", e);
-                match e.status() {
-                    None => Err(e.to_string()),
-                    Some(code) => Err(code.to_string()),
-                }
+                let status = match e.status() {
+                    None => e.to_string(),
+                    Some(code) => code.to_string(),
+                };
+                RequestStatsBuilder::default()
+                    .bytes_processed(0)
+                    .status(status)
+                    .is_success(false)
+                    .duration(Instant::now().duration_since(start))
+                    .build()
+                    .expect("RequestStatsBuilder failed")
             }
         }
     }
 }
 
+impl HttpBenchAdapter {
+    fn build_request(
+        &self,
+        client: &<HttpBenchAdapter as BenchmarkProtocolAdapter>::Client,
+    ) -> Request {
+        // so far simple GET for a given URL.
+        // easy to extend with any method + headers + body
+        client
+            .get(&self.url.clone())
+            .build()
+            .expect("Error building request")
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::bench_session::BenchmarkProtocolAdapter;
-    use crate::http_bench_session::HttpBenchAdapterBuilder;
+    use crate::bench_run::BenchmarkProtocolAdapter;
+    use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
     use mockito::mock;
     use std::time::Duration;
     use tokio::time::timeout;
@@ -106,10 +129,8 @@ mod tests {
             .unwrap();
 
         let client = http_bench.build_client().expect("Client is built");
-        let result = http_bench.send_request(&client).await;
+        let stats = http_bench.send_request(&client).await;
 
-        assert!(result.is_ok());
-        let stats = result.unwrap();
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
         assert_eq!("200 OK".to_string(), stats.status);
@@ -139,10 +160,8 @@ mod tests {
             .unwrap();
 
         let client = http_bench.build_client().expect("Client is built");
-        let result = http_bench.send_request(&client).await;
+        let stats = http_bench.send_request(&client).await;
 
-        assert!(result.is_ok());
-        let stats = result.unwrap();
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
         assert_eq!("500 Internal Server Error".to_string(), stats.status);
@@ -160,7 +179,7 @@ mod tests {
 
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
-        let http_bench = HttpBenchAdapterBuilder::default()
+        let http_bench: HttpBenchAdapter = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
             .tunnel(None)
             .ignore_cert(false)

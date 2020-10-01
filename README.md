@@ -1,6 +1,6 @@
-![Clippy/Fmt](https://github.com/xnuter/service-benchmark/workflows/Clippy/Fmt/badge.svg)
-![Tests](https://github.com/xnuter/service-benchmark/workflows/Tests/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/xnuter/service-benchmark/badge.svg?branch=master)](https://coveralls.io/github/xnuter/service-benchmark?branch=master)
+![Clippy/Fmt](https://github.com/xnuter/perf-gauge/workflows/Clippy/Fmt/badge.svg)
+![Tests](https://github.com/xnuter/perf-gauge/workflows/Tests/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/xnuter/perf-gauge/badge.svg?branch=master)](https://coveralls.io/github/xnuter/perf-gauge?branch=master)
 
 Overview
 ========
@@ -11,13 +11,15 @@ However, it's easily extendable to other protocols.
 Usage
 ======
 
-Build with `cargo`
+Install with `cargo`
 ```
-$ cargo build --release
-$ ./target/release/service-benchmark help 
+$ cargo install perf-gauage
+$ perf-gauge help 
+
+A benchmarking tool for network services
 
 USAGE:
-    service-benchmark [FLAGS] [OPTIONS] --num_req <NUMBER_OF_REQUESTS> [SUBCOMMAND]
+    perf-gauge [FLAGS] [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
     -v, --verbose    Print debug information. Not recommended for `-n > 500`
@@ -26,8 +28,11 @@ FLAGS:
 
 OPTIONS:
     -c, --concurrency <CONCURRENCY>       Concurrent threads. Default `1`.
+    -d, --duration <DURATION>             Duration of the test.
     -n, --num_req <NUMBER_OF_REQUESTS>    Number of requests.
-    -r, --rate <RATE_PER_SECOND>          Request rate per second. E.g. 100 or 0.1. By default no limit.
+    -r, --rate <RATE_PER_SECOND>
+            Request rate per second. E.g. 100 or 0.1. By default no limit.
+
 
 SUBCOMMANDS:
     help    Prints this message or the help of the given subcommand(s)
@@ -38,10 +43,12 @@ SUBCOMMANDS:
 Help for the `http` command:
 
 ```
-$./target/release/service-benchmark help http
+$ perf-gauge help http
+
+Run in HTTP(S) mode
 
 USAGE:
-    service-benchmark http [FLAGS] [OPTIONS] <TARGET>
+    perf-gauge http [FLAGS] [OPTIONS] <TARGET>
 
 ARGS:
     <TARGET>    Target, e.g. https://my-service.com:8443/8kb
@@ -57,48 +64,48 @@ FLAGS:
 OPTIONS:
         --tunnel <TUNNEL>    HTTP Tunnel used for connection, e.g. http://my-proxy.org
 
-
 ```
 
-Example:
-
-Test an endpoint:
+For example, test an endpoint using a single run, 5 seconds (max possible request rate):
 
 ```
-./target/release/service-benchmark -c 4 -n 50000 \
+$ perf-gauge -c 4 -d 5s \
                                    http https://my-local-nginx.org/10kb --ignore_cert --conn_reuse
-
-```
-
-via an HTTP tunnel:
-
-```
-$ ./target/release/service-benchmark -c 4 -n 50000 \
-                                    http https://my-local-nginx.org/10kb \
-                                    --tunnel http://localhost:8080 --ignore_cert --conn_reuse
-......
-Elapsed 14.829113573s, Total bytes: 500000000. Bytes per request: 10000.000. Per second: 33717457.051
+Duration 5.005778798s 
+Requests: 99565 
+Request rate: 19890.012 per second
+Total bytes: 995.6 MB 
+Bitrate: 1591.201 Mbps
 
 Summary:
-200 OK: 50000
+200 OK: 99565
 
-Percentiles: p50: 552µs p90: 817µs p99: 1240µs p99.9: 1806µs
-Latency (µs): Min: 245µs Avg: 592µs Max: 5800µs StdDev: 191µs
+Latency:
+Min    :   137µs
+p50    :   191µs
+p90    :   243µs
+p99    :   353µs
+p99.9  :   546µs
+p99.99 :  1769µs
+Max    : 15655µs
+Avg    :   201µs
+StdDev :   110µs
+```
+
+Reporting performance metrics to Prometheus
+===========================================
+
+Another use case, is to increase request rate and see how the latency degrades. 
+
+E.g. increase RPS each minute by 1,000: 
+
+```
+perf-gauge -c 2 --rate 1000 --rate_step 1000 --rate_max 20000 \
+      -d 60s  \
+      --prometheus localhost:9091 --prometheus_labels type=plain_nginx \
+      http https://my-local-nginx.org/10kb \
+      --conn_reuse --ignore_cert \
+      --tunnel http://localhost:8080
 
 ```
 
-With a given rate of requests (1,000 RPS):
-
-```
-$./target/release/service-benchmark -c 4 -r 1000 -n 50000 \
-                                    http https://my-local-nginx.org/10kb \
-                                    --tunnel http://localhost:8080 --ignore_cert --conn_reuse
-......
-Elapsed 50.096235689s, Total bytes: 500000000. Bytes per request: 10000.000. Per second: 9980789.836
-
-Summary:
-200 OK: 50000
-
-Percentiles: p50: 327µs p90: 545µs p99: 839µs p99.9: 1232µs
-Latency (µs): Min: 128µs Avg: 367µs Max: 33653µs StdDev: 249µs
-```

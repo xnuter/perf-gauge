@@ -20,8 +20,30 @@ appenders:
     encoder:
       pattern: "{d} - [{l}] {f}:{L} - {m}{n}"
 
+  stats:
+    kind: rolling_file
+    path: log/stats.log
+    policy:
+      kind: compound
+      roller:
+        kind: fixed_window
+        count: 10
+        base: 1
+        pattern: log/stats.{}.log
+      trigger:
+        kind: size
+        limit: 10mb
+    encoder:
+      pattern: "{m}{n}"
+
 root:
   level: info
   appenders:
     - application
 
+loggers:
+  stats:
+    level: info
+    appenders:
+      - stats
+    additive: false
