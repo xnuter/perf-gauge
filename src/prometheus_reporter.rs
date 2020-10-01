@@ -77,7 +77,7 @@ impl PrometheusReporter {
                     })
                     .collect()
             })
-            .unwrap_or(HashMap::new())
+            .unwrap_or_else(HashMap::new)
     }
 
     fn build_registry(bench_run_metrics: &BenchRunMetrics) -> Registry {
