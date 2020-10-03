@@ -148,6 +148,7 @@ mod tests {
     use crate::bench_run::BenchmarkProtocolAdapter;
     use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
     use mockito::mock;
+    use mockito::Matcher::Exact;
     use std::time::Duration;
     use tokio::time::timeout;
 
@@ -165,6 +166,40 @@ mod tests {
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
+            .build()
+            .unwrap();
+
+        let client = http_bench.build_client().expect("Client is built");
+        let stats = http_bench.send_request(&client).await;
+
+        println!("{:?}", stats);
+        assert_eq!(body.len(), stats.bytes_processed);
+        assert_eq!("200 OK".to_string(), stats.status);
+    }
+
+    #[tokio::test]
+    async fn test_success_put_request() {
+        let body = "world";
+
+        let _m = mock("PUT", "/1")
+            .match_header("x-header", "value1")
+            .match_header("x-another-header", "value2")
+            .match_body(Exact("abcd".to_string()))
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body(body)
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+        let http_bench = HttpBenchAdapterBuilder::default()
+            .url(format!("{}/1", url))
+            .method("PUT".to_string())
+            .headers(vec![
+                ("x-header".to_string(), "value1".to_string()),
+                ("x-another-header".to_string(), "value2".to_string()),
+            ])
+            .body("abcd".as_bytes().to_vec())
             .build()
             .unwrap();
 

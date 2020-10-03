@@ -160,11 +160,12 @@ impl PrometheusReporter {
 #[cfg(test)]
 mod test {
     use crate::metrics::{
-        BenchRunMetrics, DefaultConsoleReporter, ExternalMetricsServiceReporter,
+        BenchRunMetrics, DefaultConsoleReporter, ExternalMetricsServiceReporter, RequestStats,
         RequestStatsBuilder,
     };
     use crate::prometheus_reporter::PrometheusReporter;
     use histogram::Histogram;
+    use mockito::mock;
     use prometheus::proto::*;
     use prometheus::Registry;
     use std::collections::HashMap;
@@ -336,5 +337,37 @@ mod test {
             (total_requests - successful_requests) as f64,
             response_codes.get_metric()[1].get_gauge().get_value()
         );
+    }
+
+    #[test]
+    fn test_prometheus_reporting() {
+        let _m = mock("PUT", "/metrics/job/prometheus_job/k1/v1")
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body("world")
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+
+        let reporter = PrometheusReporter::new(
+            url["http://".len()..].to_string(),
+            Some("prometheus_job"),
+            vec![("k1".to_string(), "v1".to_string())],
+        );
+
+        let mut metrics = BenchRunMetrics::new();
+        for i in 0..1000 {
+            metrics.report_request(RequestStats {
+                is_success: true,
+                bytes_processed: 0,
+                status: "200 OK".to_string(),
+                duration: Duration::from_micros(i),
+            });
+        }
+
+        let sent = reporter.report(&metrics);
+
+        assert!(sent.is_ok(), "{:?}", sent);
     }
 }
