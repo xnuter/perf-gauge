@@ -118,7 +118,7 @@ E.g. increase RPS each minute by 1,000:
 ```
 perf-gauge -c 2 --rate 1000 --rate_step 1000 --rate_max 20000 \
       -d 60s  \
-      --prometheus localhost:9091 --prometheus_labels type=plain_nginx \
+      --prometheus localhost:9091 --prometheus_label type:plain_nginx --prometheus_label rate:linear \
       http https://my-local-nginx.org/10kb \
       --conn_reuse --ignore_cert \
       --tunnel http://localhost:8080
