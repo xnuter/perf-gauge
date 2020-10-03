@@ -95,8 +95,10 @@ impl BenchRun {
                 .await
                 .expect("Unexpected LeakyBucket.acquire error");
 
+            let request_stats = bench_protocol_adapter.send_request(&client).await;
+
             metrics_channel
-                .try_send(bench_protocol_adapter.send_request(&client).await)
+                .try_send(request_stats)
                 .map_err(|e| {
                     error!("Error sending metrics: {}", e);
                 })
@@ -134,12 +136,6 @@ mod tests {
         println!("Url: {}", url);
         let http_adapter = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
-            .tunnel(None)
-            .ignore_cert(false)
-            .conn_reuse(false)
-            .store_cookies(false)
-            .http2_only(false)
-            .verbose(true)
             .build()
             .unwrap();
 

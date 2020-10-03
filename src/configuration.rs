@@ -33,10 +33,10 @@ pub struct BenchmarkConfig {
 impl BenchmarkConfig {
     pub fn from_command_line() -> io::Result<BenchmarkConfig> {
         let matches = clap_app!(myapp =>
-            (name: "Service benchmark")
+            (name: "Performance Gauge")
             (version: "0.1.0")
             (author: "Eugene Retunsky")
-            (about: "A benchmarking tool for network services")
+            (about: "A tool for gauging performance of network services")
             (@arg CONCURRENCY: --concurrency -c +takes_value "Concurrent threads. Default `1`.")
             (@group duration =>
                 (@arg NUMBER_OF_REQUESTS: --num_req -n +takes_value "Number of requests.")
@@ -48,16 +48,19 @@ impl BenchmarkConfig {
             (@arg VERBOSE: --verbose -v "Print debug information. Not recommended for `-n > 500`")
             (@arg PROMETHEUS_ADDR: --prometheus +takes_value "If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g. 10.0.0.1:9091")
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
-            (@arg PROMETHEUS_LABELS: --prometheus_labels +takes_value "Label for prometheus metrics (absent by default). Comma separated key=value pairs. E.g. `k1=v1,k2=v2`")
+            (@arg PROMETHEUS_LABEL: --prometheus_label ... "Label for prometheus metrics (absent by default). Format: `key:value`. Multiple labels are supported. E.g. `--prometheus_label type:plain-nginx --prometheus_label linear-rate`")
             (@subcommand http =>
                 (about: "Run in HTTP(S) mode")
                 (version: "0.1.0")
                 (@arg TUNNEL: --tunnel +takes_value "HTTP Tunnel used for connection, e.g. http://my-proxy.org")
-                (@arg TARGET: +required "Target, e.g. https://my-service.com:8443/8kb")
                 (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates. Applies to the target (not proxy).")
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
                 (@arg STORE_COOKIES: --store_cookies "If cookies should be stored")
                 (@arg HTTP2_ONLY: --http2_only "Enforce HTTP/2 only")
+                (@arg TARGET: +required "Target, e.g. https://my-service.com:8443/8kb")
+                (@arg METHOD: --method -M +takes_value "Method. By default GET")
+                (@arg HEADER: --header -H ... "Headers in \"Name:Value\" form. Can be provided multiple times.")
+                (@arg BODY: --body -B  +takes_value "Body of the request in base64. Optional.")
             )
         ).get_matches();
 
@@ -108,7 +111,7 @@ impl BenchmarkConfig {
             metrics_destinations.push(Arc::new(Box::new(PrometheusReporter::new(
                 prometheus_addr.to_string(),
                 matches.value_of("PROMETHEUS_JOB"),
-                matches.value_of("PROMETHEUS_LABELS"),
+                BenchmarkConfig::get_multiple_values(&matches, "PROMETHEUS_LABEL"),
             ))));
         }
 
@@ -136,6 +139,14 @@ impl BenchmarkConfig {
                 .conn_reuse(config.is_present("CONN_REUSE"))
                 .store_cookies(config.is_present("STORE_COOKIES"))
                 .http2_only(config.is_present("HTTP2_ONLY"))
+                .method(config.value_of("METHOD").unwrap_or("GET").to_string())
+                .headers(BenchmarkConfig::get_multiple_values(config, "HEADER"))
+                .body(
+                    config
+                        .value_of("BODY")
+                        .map(|s| base64::decode(s).expect("Invalid base64"))
+                        .unwrap_or_else(Vec::new),
+                )
                 .verbose(verbose)
                 .build()
                 .expect("BenchmarkModeBuilder failed");
@@ -144,6 +155,22 @@ impl BenchmarkConfig {
             unreachable!("Unknown subcommand: {}", matches.subcommand().unwrap().0);
         };
         mode
+    }
+
+    fn get_multiple_values(config: &ArgMatches, id: &str) -> Vec<(String, String)> {
+        config
+            .values_of(id)
+            .map(|v| {
+                v.map(|s| {
+                    let mut split = s.split(':');
+                    (
+                        split.next().expect("Header name is missing").to_string(),
+                        split.collect::<Vec<&str>>().join(":"),
+                    )
+                })
+                .collect()
+            })
+            .unwrap_or_else(Vec::new)
     }
 
     pub fn new_bench_session(&mut self) -> BenchSession {

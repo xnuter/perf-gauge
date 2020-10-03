@@ -73,20 +73,6 @@ impl BenchRunMetrics {
     }
 }
 
-impl ExternalMetricsServiceReporter for DefaultConsoleReporter {
-    fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()> {
-        println!("{}", BenchRunReport::from(metrics));
-        println!("{}", "=".repeat(50));
-        Ok(())
-    }
-}
-
-impl DefaultConsoleReporter {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
 impl From<&BenchRunMetrics> for BenchRunReport {
     fn from(metrics: &BenchRunMetrics) -> Self {
         let successful_requests = metrics.successful_requests as usize;
@@ -201,6 +187,22 @@ impl fmt::Display for BenchRunReport {
     }
 }
 
+// cov:begin-ignore-line
+impl ExternalMetricsServiceReporter for DefaultConsoleReporter {
+    fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()> {
+        println!("{}", BenchRunReport::from(metrics));
+        println!("{}", "=".repeat(50));
+        Ok(())
+    }
+}
+
+impl DefaultConsoleReporter {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+// cov:end-ignore-line
+
 #[cfg(test)]
 mod tests {
     use crate::bench_run::BenchRun;
@@ -290,5 +292,30 @@ mod tests {
         }
         sleep(duration);
         assert!(!metrics.has_more_work());
+    }
+
+    #[test]
+    fn test_bench_run_report_display() {
+        let mut metrics = BenchRunMetrics::new();
+        for i in 0..1000 {
+            metrics.report_request(RequestStats {
+                is_success: true,
+                bytes_processed: 0,
+                status: "200 OK".to_string(),
+                duration: Duration::from_micros(i),
+            });
+        }
+
+        let as_str = BenchRunReport::from(&metrics).to_string();
+
+        assert!(as_str.contains("Min"));
+        assert!(as_str.contains("p50"));
+        assert!(as_str.contains("p90"));
+        assert!(as_str.contains("p99"));
+        assert!(as_str.contains("p99.9"));
+        assert!(as_str.contains("p99.99"));
+        assert!(as_str.contains("Max"));
+        assert!(as_str.contains("Avg"));
+        assert!(as_str.contains("StdDev"));
     }
 }

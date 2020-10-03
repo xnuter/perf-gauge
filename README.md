@@ -1,3 +1,4 @@
+[![Crate](https://img.shields.io/crates/v/perf-gauge.svg)](https://crates.io/crates/perf-gauge)
 ![Clippy/Fmt](https://github.com/xnuter/perf-gauge/workflows/Clippy/Fmt/badge.svg)
 ![Tests](https://github.com/xnuter/perf-gauge/workflows/Tests/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/xnuter/perf-gauge/badge.svg?branch=master)](https://coveralls.io/github/xnuter/perf-gauge?branch=master)
@@ -16,7 +17,7 @@ Install with `cargo`
 $ cargo install perf-gauage
 $ perf-gauge help 
 
-A benchmarking tool for network services
+A tool for gauging performance of network services
 
 USAGE:
     perf-gauge [FLAGS] [OPTIONS] [SUBCOMMAND]
@@ -27,11 +28,24 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --concurrency <CONCURRENCY>       Concurrent threads. Default `1`.
-    -d, --duration <DURATION>             Duration of the test.
-    -n, --num_req <NUMBER_OF_REQUESTS>    Number of requests.
-    -r, --rate <RATE_PER_SECOND>
+    -c, --concurrency <CONCURRENCY>                 Concurrent threads. Default `1`.
+    -d, --duration <DURATION>                       Duration of the test.
+    -n, --num_req <NUMBER_OF_REQUESTS>              Number of requests.
+        --prometheus <PROMETHEUS_ADDR>
+            If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g.
+            10.0.0.1:9091
+
+        --prometheus_job <PROMETHEUS_JOB>           Prometheus Job (by default `pushgateway`)
+        --prometheus_label <PROMETHEUS_LABEL>...
+            Label for prometheus metrics (absent by default). Format: `key:value`. Multiple labels
+            are supported. E.g. `--prometheus_label type:plain-nginx --prometheus_label linear-rate`
+
+    -r, --rate <RATE>
             Request rate per second. E.g. 100 or 0.1. By default no limit.
+
+        --rate_max <RATE_MAX>                       Max rate per second. Requires --rate-step
+        --rate_step <RATE_STEP>
+            Rate increase step (until it reaches --rate_max).
 
 
 SUBCOMMANDS:
@@ -62,8 +76,10 @@ FLAGS:
     -V, --version          Prints version information
 
 OPTIONS:
-        --tunnel <TUNNEL>    HTTP Tunnel used for connection, e.g. http://my-proxy.org
-
+    -B, --body <BODY>           Body of the request in base64. Optional.
+    -H, --header <HEADER>...    Headers in "Name:Value" form. Can be provided multiple times.
+    -M, --method <METHOD>       Method. By default GET
+        --tunnel <TUNNEL>       HTTP Tunnel used for connection, e.g. http://my-proxy.org
 ```
 
 For example, test an endpoint using a single run, 5 seconds (max possible request rate):

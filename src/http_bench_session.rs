@@ -9,18 +9,33 @@ use crate::bench_run::BenchmarkProtocolAdapter;
 use crate::metrics::{RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
 use log::error;
-use reqwest::{Proxy, Request};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::{Method, Proxy, Request};
+use std::str::FromStr;
 use std::time::{Duration, Instant};
 
 #[derive(Builder, Deserialize, Clone, Debug)]
+#[builder(build_fn(validate = "Self::validate"))]
 pub struct HttpBenchAdapter {
     url: String,
+    #[builder(default)]
     tunnel: Option<String>,
+    #[builder(default)]
     ignore_cert: bool,
+    #[builder(default)]
     conn_reuse: bool,
+    #[builder(default)]
     store_cookies: bool,
+    #[builder(default)]
     verbose: bool,
+    #[builder(default)]
     http2_only: bool,
+    #[builder(default = "\"GET\".to_string()")]
+    method: String,
+    #[builder(default)]
+    headers: Vec<(String, String)>,
+    #[builder(default)]
+    body: Vec<u8>,
 }
 
 #[async_trait]
@@ -88,12 +103,43 @@ impl HttpBenchAdapter {
         &self,
         client: &<HttpBenchAdapter as BenchmarkProtocolAdapter>::Client,
     ) -> Request {
-        // so far simple GET for a given URL.
-        // easy to extend with any method + headers + body
-        client
-            .get(&self.url.clone())
-            .build()
-            .expect("Error building request")
+        let method =
+            Method::from_str(&self.method.clone()).expect("Method must be valid at this point");
+
+        let mut request_builder = client.request(method, &self.url.clone());
+
+        if !self.headers.is_empty() {
+            let mut headers = HeaderMap::new();
+            for (key, value) in self.headers.iter() {
+                headers
+                    .entry(
+                        HeaderName::from_str(&key)
+                            .expect("Header name must be valid at this point"),
+                    )
+                    .or_insert(
+                        HeaderValue::from_str(&value)
+                            .expect("Header value must be valid at this point"),
+                    );
+            }
+            request_builder = request_builder.headers(headers);
+        }
+
+        if !self.body.is_empty() {
+            request_builder = request_builder.body(self.body.clone());
+        }
+
+        request_builder.build().expect("Illegal request")
+    }
+}
+
+impl HttpBenchAdapterBuilder {
+    /// Validate request is going to be built from the given settings
+    fn validate(&self) -> Result<(), String> {
+        if let Some(ref m) = self.method {
+            Method::from_str(m).map_err(|e| e.to_string()).map(|_| ())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -119,12 +165,6 @@ mod tests {
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
-            .tunnel(None)
-            .ignore_cert(true)
-            .conn_reuse(true)
-            .store_cookies(true)
-            .http2_only(false)
-            .verbose(false)
             .build()
             .unwrap();
 
@@ -150,12 +190,6 @@ mod tests {
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
-            .tunnel(None)
-            .ignore_cert(false)
-            .conn_reuse(false)
-            .store_cookies(false)
-            .http2_only(false)
-            .verbose(true)
             .build()
             .unwrap();
 
@@ -181,12 +215,7 @@ mod tests {
         println!("Url: {}", url);
         let http_bench: HttpBenchAdapter = HttpBenchAdapterBuilder::default()
             .url(format!("{}/1", url))
-            .tunnel(None)
-            .ignore_cert(false)
-            .conn_reuse(false)
-            .store_cookies(false)
             .http2_only(true)
-            .verbose(true)
             .build()
             .unwrap();
 
