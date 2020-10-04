@@ -28,6 +28,7 @@ use log4rs::Config;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
+use std::thread::JoinHandle;
 use tokio::io;
 
 #[tokio::main]
@@ -41,7 +42,8 @@ async fn main() -> io::Result<()> {
 
     info!("Starting with configuration {}", benchmark_config);
 
-    let batch_metric_sender = create_async_metrics_channel(benchmark_config.reporters.clone());
+    let (reporter_task, batch_metric_sender) =
+        create_async_metrics_channel(benchmark_config.reporters.clone());
     let bench_session = benchmark_config.new_bench_session();
 
     for batch in bench_session {
@@ -51,19 +53,21 @@ async fn main() -> io::Result<()> {
             batch_metric_sender.send(stats).unwrap_or_default();
         }
     }
-
+    drop(batch_metric_sender);
+    reporter_task.join().unwrap_or_default();
+    println!("Done gauging performance. Exiting.");
     Ok(())
 }
 
 fn create_async_metrics_channel(
     metric_reporters: Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>>,
-) -> Sender<BenchRunMetrics> {
+) -> (JoinHandle<()>, Sender<BenchRunMetrics>) {
     // We need to report metrics in a separate threads,
     // as at the moment of writing this code not all major metric client libraries
     // had `async` APIs.
     // We can replace it with `tokio::sync::mpsc` and `tokio::spawn` at any time
     let (sender, receiver) = std::sync::mpsc::channel();
-    thread::spawn(move || {
+    let reporter_task = thread::spawn(move || {
         while let Ok(stats) = receiver.recv() {
             // broadcast to all metrics reporters
             for reporter in &metric_reporters {
@@ -73,7 +77,7 @@ fn create_async_metrics_channel(
             }
         }
     });
-    sender
+    (reporter_task, sender)
 }
 
 fn init_logger() {
