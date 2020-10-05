@@ -47,7 +47,7 @@ OPTIONS:
         --prometheus_job <PROMETHEUS_JOB>           Prometheus Job (by default `pushgateway`)
         --prometheus_label <PROMETHEUS_LABEL>...
             Label for prometheus metrics (absent by default). Format: `key:value`. Multiple labels
-            are supported. E.g. `--prometheus_label type:plain-nginx --prometheus_label linear-rate`
+            are supported. E.g. `--prometheus_label type:plain-nginx --prometheus_label rampup:linear-rate`
 
     -r, --rate <RATE>
             Request rate per second. E.g. 100 or 0.1. By default no limit.
