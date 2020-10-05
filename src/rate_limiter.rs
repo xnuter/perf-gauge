@@ -55,7 +55,7 @@ impl RateLimiter {
             leaky_bucket: Some(
                 buckets
                     .rate_limiter()
-                    // we add 5% to compensate overhead
+                    // to compensate overhead let's add a bit to the rate
                     .refill_amount((amount * 1.01) as usize)
                     .refill_interval(interval)
                     .build()
