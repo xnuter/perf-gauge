@@ -1,6 +1,7 @@
 use bytesize::ByteSize;
 use core::fmt;
 use histogram::Histogram;
+use log::info;
 use std::collections::HashMap;
 use std::ops::AddAssign;
 use std::time::{Duration, Instant};
@@ -24,6 +25,7 @@ pub struct BenchRunMetrics {
 }
 
 /// Default reporter that prints stats to console.
+#[derive(Serialize)]
 struct BenchRunReport {
     duration: Duration,
     total_bytes: usize,
@@ -190,8 +192,11 @@ impl fmt::Display for BenchRunReport {
 // cov:begin-ignore-line
 impl ExternalMetricsServiceReporter for DefaultConsoleReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()> {
-        println!("{}", BenchRunReport::from(metrics));
+        let report = BenchRunReport::from(metrics);
+        println!("{}", report);
         println!("{}", "=".repeat(50));
+        info!(target: "stats", "{}",
+              serde_json::to_string(&report).expect("JSON serialization failed"));
         Ok(())
     }
 }

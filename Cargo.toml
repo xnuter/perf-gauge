@@ -1,6 +1,6 @@
 [package]
 name = "perf-gauge"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Eugene Retunsky"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/xnuter/perf-gauge"
 homepage = "https://github.com/xnuter/perf-gauge"
 description = """
-Benchmarking tool for network services.
+Gauging performance of network services. Snapshot or continuous, supports Prometheus metrics.
 """
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -27,7 +27,7 @@ serde_yaml = "0.8"
 serde_json = "1.0"
 tokio = { version = "0.2", features = ["full"] }
 histogram = "0.6"
-leaky-bucket = "0.7"
+leaky-bucket = "0.8.2"
 async-trait = "0.1"
 bytesize = "1.0"
 humantime = "2.0"

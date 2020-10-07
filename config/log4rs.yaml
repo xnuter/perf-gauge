@@ -34,7 +34,7 @@ appenders:
         kind: size
         limit: 10mb
     encoder:
-      pattern: "{m}{n}"
+      pattern: "{d} - {m}{n}"
 
 root:
   level: info
