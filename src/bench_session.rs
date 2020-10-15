@@ -226,12 +226,64 @@ mod tests {
             .rate_increment(Some(5000.))
             .step_duration(None)
             .step_requests(None)
+            .max_rate_iterations(0)
             .build()
             .expect("Failed to build");
 
+        // warm-up
         assert_eq!(5000., rate_ladder.get_current());
+
+        // first-iteration
+        rate_ladder.increment_rate();
+        assert_eq!(5000., rate_ladder.get_current());
+
+        // second iteration
         rate_ladder.increment_rate();
         assert_eq!(10000., rate_ladder.get_current());
+
+        // cool-down
+        rate_ladder.increment_rate();
+        assert_eq!(10000., rate_ladder.get_current());
+
+        // done
+        rate_ladder.increment_rate();
+        assert_eq!(10001., rate_ladder.get_current());
+    }
+
+    #[test]
+    fn test_rate_ladder_with_max_reps() {
+        let max_rate_reps = 10;
+        let mut rate_ladder = RateLadderBuilder::default()
+            .start(5000.)
+            .end(10000.)
+            .rate_increment(Some(5000.))
+            .step_duration(None)
+            .step_requests(None)
+            .max_rate_iterations(max_rate_reps)
+            .build()
+            .expect("Failed to build");
+
+        // warm-up
+        assert_eq!(5000., rate_ladder.get_current());
+
+        // first-iteration
+        rate_ladder.increment_rate();
+        assert_eq!(5000., rate_ladder.get_current());
+
+        // second iteration
+        rate_ladder.increment_rate();
+        assert_eq!(10000., rate_ladder.get_current());
+
+        for _ in 0..max_rate_reps {
+            rate_ladder.increment_rate();
+            assert_eq!(10000., rate_ladder.get_current());
+        }
+
+        // cool-down
+        rate_ladder.increment_rate();
+        assert_eq!(10000., rate_ladder.get_current());
+
+        // done
         rate_ladder.increment_rate();
         assert_eq!(10001., rate_ladder.get_current());
     }
