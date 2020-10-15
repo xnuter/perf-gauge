@@ -32,35 +32,35 @@ USAGE:
     perf-gauge [FLAGS] [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
-    -v, --verbose    Print debug information. Not recommended for `-n > 500`
+    -v, --verbose    Print debug information. Works only with the `TRACE` log level in the log4rs
+                     config. Not recommended for `-n > 500`
     -h, --help       Prints help information
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --concurrency <CONCURRENCY>                 Concurrent threads. Default `1`.
-    -d, --duration <DURATION>                       Duration of the test.
-    -n, --num_req <NUMBER_OF_REQUESTS>              Number of requests.
+    -c, --concurrency <CONCURRENCY>          Concurrent threads. Default `1`.
+    -d, --duration <DURATION>                Duration of the test.
+    -m, --max_iter <MAX_RATE_ITERATIONS>
+            The number of iterations with the max rate. By default `1`. Requires --rate-step
+
+    -n, --num_req <NUMBER_OF_REQUESTS>       Number of requests.
         --prometheus <PROMETHEUS_ADDR>
             If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g.
             10.0.0.1:9091
 
-        --prometheus_job <PROMETHEUS_JOB>           Prometheus Job (by default `pushgateway`)
-        --prometheus_label <PROMETHEUS_LABEL>...
-            Label for prometheus metrics (absent by default). Format: `key:value`. Multiple labels
-            are supported. E.g. `--prometheus_label type:plain-nginx --prometheus_label rampup:linear-rate`
-
+        --prometheus_job <PROMETHEUS_JOB>    Prometheus Job (by default `pushgateway`)
     -r, --rate <RATE>
             Request rate per second. E.g. 100 or 0.1. By default no limit.
 
-        --rate_max <RATE_MAX>                       Max rate per second. Requires --rate-step
-        --rate_step <RATE_STEP>
-            Rate increase step (until it reaches --rate_max).
+        --rate_max <RATE_MAX>                Max rate per second. Requires --rate-step
+        --rate_step <RATE_STEP>              Rate increase step (until it reaches --rate_max).
+    -N, --name <test_case_name>
+            Test case name. Optional. Can be used for tagging metrics.
 
 
 SUBCOMMANDS:
     help    Prints this message or the help of the given subcommand(s)
     http    Run in HTTP(S) mode
-
 ```
 
 Help for the `http` command:
@@ -95,7 +95,7 @@ For example, test an endpoint using a single run, 5 seconds (max possible reques
 
 ```
 $ perf-gauge -c 4 -d 5s \
-                                   http https://my-local-nginx.org/10kb --ignore_cert --conn_reuse
+              http https://my-local-nginx.org/10kb --ignore_cert --conn_reuse
 Duration 5.005778798s 
 Requests: 99565 
 Request rate: 19890.012 per second
@@ -127,10 +127,26 @@ E.g. increase RPS each minute by 1,000:
 ```
 perf-gauge -c 2 --rate 1000 --rate_step 1000 --rate_max 20000 \
       -d 60s  \
-      --prometheus localhost:9091 --prometheus_label type:plain_nginx --prometheus_label rate:linear \
+      -N http-tunnel
+      --prometheus localhost:9091 \
       http https://my-local-nginx.org/10kb \
       --conn_reuse --ignore_cert \
       --tunnel http://localhost:8080
 
 ```
 
+For example, running the same test in parallel to compare different use-cases:
+
+```bash
+#!/usr/bin/env bash
+
+perf-gauge -c 1 --rate 1 --rate_step 1000 --rate_max 5000 \
+    -m 5 -d 60s -N http-tunnel --prometheus localhost:9091 \
+    http https://my-local-nginx.xnuter.org/10kb \
+    --conn_reuse --ignore_cert --tunnel http://localhost:8080 &
+    
+perf-gauge -c 1 --rate 1 --rate_step 1000 --rate_max 5000 \
+    -m 5 -d 60s -N nginx-direct --prometheus localhost:9091 \
+    http https://my-local-nginx.xnuter.org/10kb --conn_reuse --ignore_cert &
+
+```

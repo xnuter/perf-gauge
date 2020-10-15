@@ -11,6 +11,7 @@ use crate::rate_limiter::RateLimiter;
 /// except according to those terms.
 use derive_builder::Builder;
 use log::error;
+use log::info;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -18,7 +19,6 @@ use tokio::sync::mpsc::Sender;
 
 #[derive(Builder, Clone)]
 pub struct BenchSession {
-    name: Option<String>,
     concurrency: usize,
     rate_ladder: RateLadder,
     mode: Arc<BenchmarkMode>,
@@ -28,8 +28,16 @@ pub struct BenchSession {
 
 #[derive(Debug)]
 pub struct BenchBatch {
+    report_metrics: bool,
     runs: Vec<BenchRun>,
     mode: Arc<BenchmarkMode>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RateLadderState {
+    WarmUp,
+    NormalRun(usize),
+    CoolDown,
 }
 
 #[derive(Builder, Debug, Clone)]
@@ -41,6 +49,10 @@ pub struct RateLadder {
     step_requests: Option<usize>,
     #[builder(setter(skip))]
     current: f64,
+    #[builder(default = "RateLadderState::WarmUp")]
+    state: RateLadderState,
+    #[builder(default = "1")]
+    max_rate_iterations: usize,
 }
 
 impl Iterator for BenchSession {
@@ -76,11 +88,16 @@ impl Iterator for BenchSession {
             });
         }
 
-        self.rate_ladder.increment_rate();
+        let report_metrics = match &self.rate_ladder.state {
+            RateLadderState::NormalRun(_) => true,
+            _ => self.rate_ladder.rate_increment.is_none(),
+        };
 
+        self.rate_ladder.increment_rate();
         self.current_iteration += 1;
 
         Some(BenchBatch {
+            report_metrics,
             runs: items,
             mode: self.mode.clone(),
         })
@@ -90,6 +107,10 @@ impl Iterator for BenchSession {
 impl BenchBatch {
     pub async fn run(self, mut metrics: BenchRunMetrics) -> Result<BenchRunMetrics, String> {
         let (metrics_sender, mut metrics_receiver) = mpsc::channel(1_000);
+
+        // if the metrics should not be reported for this run
+        // e.g. WarmUp or CoolDown, which may emit anomalous metrics
+        metrics.discard = !self.report_metrics;
 
         // single consumer to aggregate metrics
         let metrics_aggregator = tokio::spawn(async move {
@@ -149,12 +170,45 @@ impl RateLadder {
                 // only a single iteration, if no rate_increment provided
                 self.current = self.end + 1.;
             }
+            Some(_) if self.state == RateLadderState::WarmUp => {
+                // don't increment the rate, it was a warm-up run
+                self.state = RateLadderState::NormalRun(self.max_rate_iterations);
+                info!(
+                    "Warmed up with rate: {}. Starting iterations: {}",
+                    self.get_current(),
+                    self.max_rate_iterations
+                );
+                self.current = 0.;
+            }
+            Some(_) if self.state == RateLadderState::CoolDown => {
+                self.current = self.end + 1.;
+                info!("Cooled down with rate: {}", self.current);
+            }
             Some(rate_increment) => {
                 // if we add above the `end` rate, then make the last run at the `end` rate
                 let distance_to_end = self.end - self.get_current();
                 let increment = rate_increment.min(distance_to_end);
-                // make sure there are no infinite loops and increment the rate at least by 1
-                self.current = self.get_current() + increment.max(1.);
+                self.current = self.get_current() + increment;
+                if let RateLadderState::NormalRun(iterations_left) = self.state {
+                    self.state = if increment < 1. {
+                        if iterations_left > 0 {
+                            info!(
+                                "Max run rate: {}. Iterations left: {}",
+                                self.current,
+                                iterations_left - 1
+                            );
+                            RateLadderState::NormalRun(iterations_left - 1)
+                        } else {
+                            info!("The last cool down run rate: {}", self.current);
+                            // cool down, if we reached the max rate
+                            // just one last run
+                            RateLadderState::CoolDown
+                        }
+                    } else {
+                        info!("Ramp-up run with rate: {}", self.current,);
+                        RateLadderState::NormalRun(iterations_left)
+                    };
+                }
             }
         }
     }

@@ -7,23 +7,32 @@ use std::collections::HashMap;
 use std::io;
 
 pub struct PrometheusReporter {
+    test_case_name: Option<String>,
     job: String,
-    labels: HashMap<String, String>,
     address: String,
     basic_auth: Option<prometheus::BasicAuthentication>,
 }
 
 impl ExternalMetricsServiceReporter for PrometheusReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()> {
-        info!("Sending metrics to Prometheus: {}", self.address);
+        info!("Sending metrics to Prometheus: {}", self.address,);
 
         let registry = PrometheusReporter::build_registry(metrics);
 
         let metric_families = registry.gather();
 
+        let mut labels_map = HashMap::new();
+        labels_map.insert(
+            "testname".to_string(),
+            self.test_case_name
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| "perf-gauge".to_string()),
+        );
+
         prometheus::push_metrics(
             &self.job,
-            self.labels.clone(),
+            labels_map,
             &self.address,
             metric_families,
             match self.basic_auth.as_ref() {
@@ -36,14 +45,20 @@ impl ExternalMetricsServiceReporter for PrometheusReporter {
         )
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
+
+    fn shutdown(&self) {
+        info!("Stop sending metrics to Prometheus: {}", self.address);
+        // send empty metrics to reset counters
+        self.report(&BenchRunMetrics::new()).unwrap_or_default();
+    }
 }
 
 /// For reporting to Prometheus
 impl PrometheusReporter {
-    pub fn new(addr: String, job: Option<&str>, labels: Vec<(String, String)>) -> Self {
+    pub fn new(test_case_name: Option<String>, addr: String, job: Option<&str>) -> Self {
         Self {
+            test_case_name,
             job: job.unwrap_or("pushgateway").to_string(),
-            labels: labels.into_iter().collect(),
             address: addr,
             basic_auth: None,
         }
@@ -259,7 +274,7 @@ mod test {
                     .expect("RequestStatsBuilder failed"),
             );
         }
-        DefaultConsoleReporter::new()
+        DefaultConsoleReporter::new(None)
             .report(&metrics)
             .expect("infallible");
 
@@ -341,19 +356,22 @@ mod test {
 
     #[test]
     fn test_prometheus_reporting() {
-        let _m = mock("PUT", "/metrics/job/prometheus_job/k1/v1")
-            .with_status(200)
-            .with_header("content-type", "text/plain")
-            .with_body("world")
-            .create();
+        let _m = mock(
+            "PUT",
+            "/metrics/job/prometheus_job/testname/test-prometheus",
+        )
+        .with_status(200)
+        .with_header("content-type", "text/plain")
+        .with_body("world")
+        .create();
 
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
 
         let reporter = PrometheusReporter::new(
+            Some("test-prometheus".to_string()),
             url["http://".len()..].to_string(),
             Some("prometheus_job"),
-            vec![("k1".to_string(), "v1".to_string())],
         );
 
         let mut metrics = BenchRunMetrics::new();

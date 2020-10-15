@@ -23,10 +23,15 @@ pub enum BenchmarkMode {
 
 #[derive(Clone, Builder)]
 pub struct BenchmarkConfig {
+    #[builder(default)]
+    pub name: Option<String>,
+    #[builder(default)]
     pub verbose: bool,
+    #[builder(default = "1")]
     pub concurrency: usize,
     pub rate_ladder: RateLadder,
     pub mode: BenchmarkMode,
+    #[builder(default)]
     pub reporters: Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>>,
 }
 
@@ -42,13 +47,14 @@ impl BenchmarkConfig {
                 (@arg NUMBER_OF_REQUESTS: --num_req -n +takes_value "Number of requests.")
                 (@arg DURATION: --duration -d +takes_value "Duration of the test.")
             )
+            (@arg test_case_name: --name -N +takes_value "Test case name. Optional. Can be used for tagging metrics.")
             (@arg RATE: --rate -r +takes_value "Request rate per second. E.g. 100 or 0.1. By default no limit.")
             (@arg RATE_STEP: --rate_step +takes_value "Rate increase step (until it reaches --rate_max).")
             (@arg RATE_MAX: --rate_max +takes_value "Max rate per second. Requires --rate-step")
-            (@arg VERBOSE: --verbose -v "Print debug information. Not recommended for `-n > 500`")
+            (@arg MAX_RATE_ITERATIONS: --max_iter -m +takes_value "The number of iterations with the max rate. By default `1`. Requires --rate-step")
+            (@arg VERBOSE: --verbose -v "Print debug information. Works only with the `TRACE` log level in the log4rs config. Not recommended for `-n > 500`")
             (@arg PROMETHEUS_ADDR: --prometheus +takes_value "If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g. 10.0.0.1:9091")
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
-            (@arg PROMETHEUS_LABEL: --prometheus_label ... "Label for prometheus metrics (absent by default). Format: `key:value`. Multiple labels are supported. E.g. `--prometheus_label type:plain-nginx --prometheus_label linear-rate`")
             (@subcommand http =>
                 (about: "Run in HTTP(S) mode")
                 (version: "0.1.0")
@@ -64,10 +70,12 @@ impl BenchmarkConfig {
             )
         ).get_matches();
 
+        let test_case_name = matches.value_of("test_case_name").map(|s| s.to_string());
         let concurrency = matches.value_of("CONCURRENCY").unwrap_or("1");
         let rate_per_second = matches.value_of("RATE");
         let rate_step = matches.value_of("RATE_STEP");
         let rate_max = matches.value_of("RATE_MAX");
+        let max_rate_iterations = matches.value_of("MAX_RATE_ITERATIONS").unwrap_or("1");
         let verbose = matches.is_present("VERBOSE");
 
         let duration = matches.value_of("DURATION").map(|d| {
@@ -89,6 +97,10 @@ impl BenchmarkConfig {
                 .rate_increment(Some(parse_num(rate_step, "Cannot parse RATE_STEP")))
                 .step_duration(duration)
                 .step_requests(number_of_requests)
+                .max_rate_iterations(parse_num(
+                    max_rate_iterations,
+                    "Cannot parse MAX_RATE_ITERATIONS",
+                ))
                 .build()
                 .expect("RateLadderBuilder failed")
         } else {
@@ -105,17 +117,20 @@ impl BenchmarkConfig {
 
         let mut metrics_destinations: Vec<
             Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
-        > = vec![Arc::new(Box::new(DefaultConsoleReporter::new()))];
+        > = vec![Arc::new(Box::new(DefaultConsoleReporter::new(
+            test_case_name.clone(),
+        )))];
 
         if let Some(prometheus_addr) = matches.value_of("PROMETHEUS_ADDR") {
             metrics_destinations.push(Arc::new(Box::new(PrometheusReporter::new(
+                test_case_name.clone(),
                 prometheus_addr.to_string(),
                 matches.value_of("PROMETHEUS_JOB"),
-                BenchmarkConfig::get_multiple_values(&matches, "PROMETHEUS_LABEL"),
             ))));
         }
 
         Ok(BenchmarkConfigBuilder::default()
+            .name(test_case_name)
             .rate_ladder(rate_ladder)
             .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
             .verbose(verbose)
@@ -175,7 +190,6 @@ impl BenchmarkConfig {
 
     pub fn new_bench_session(&mut self) -> BenchSession {
         BenchSessionBuilder::default()
-            .name(None)
             .concurrency(self.concurrency)
             .rate_ladder(self.rate_ladder.clone())
             .mode(Arc::new(self.mode.clone()))

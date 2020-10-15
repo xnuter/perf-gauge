@@ -9,9 +9,12 @@ use std::{cmp, io};
 
 pub trait ExternalMetricsServiceReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()>;
+    fn shutdown(&self);
 }
 
-pub struct DefaultConsoleReporter {}
+pub struct DefaultConsoleReporter {
+    test_case_name: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct BenchRunMetrics {
@@ -22,11 +25,13 @@ pub struct BenchRunMetrics {
     pub(crate) summary: HashMap<String, i32>,
     pub(crate) success_latency: Histogram,
     pub(crate) error_latency: Histogram,
+    pub(crate) discard: bool,
 }
 
 /// Default reporter that prints stats to console.
 #[derive(Serialize)]
 struct BenchRunReport {
+    test_case_name: Option<String>,
     duration: Duration,
     total_bytes: usize,
     total_requests: usize,
@@ -55,6 +60,7 @@ impl BenchRunMetrics {
             summary: Default::default(),
             success_latency: Default::default(),
             error_latency: Default::default(),
+            discard: false,
         }
     }
 
@@ -72,25 +78,6 @@ impl BenchRunMetrics {
         }
         self.total_bytes += stats.bytes_processed;
         self.summary.entry(stats.status).or_insert(0).add_assign(1);
-    }
-}
-
-impl From<&BenchRunMetrics> for BenchRunReport {
-    fn from(metrics: &BenchRunMetrics) -> Self {
-        let successful_requests = metrics.successful_requests as usize;
-        let total_requests = metrics.total_requests as usize;
-        let total_bytes = metrics.total_bytes as usize;
-        let duration = Instant::now().duration_since(metrics.bench_begin);
-        Self {
-            duration,
-            total_bytes,
-            total_requests,
-            success_rate: successful_requests as f64 * 100. / total_requests as f64,
-            rate_per_second: total_requests as f64 / duration.as_secs_f64(),
-            bitrate_mbps: total_bytes as f64 / duration.as_secs_f64() * 8. / 1_000_000.,
-            response_code_summary: BenchRunReport::summary_ordered(&metrics),
-            latency_summary: BenchRunReport::latency_summary(&metrics),
-        }
     }
 }
 
@@ -136,14 +123,19 @@ impl BenchRunReport {
 
 impl fmt::Display for BenchRunReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self.test_case_name.as_ref() {
+            None => String::new(),
+            Some(value) => format!("Test: {}\n", value),
+        };
         writeln!(
             f,
-            "Duration {:?} \n\
+            "{}Duration {:?} \n\
             Requests: {} \n\
             Request rate: {:.3} per second\n\
             Success rate: {:.3}%\n\
             Total bytes: {} \n\
             Bitrate: {:.3} Mbps",
+            name,
             self.duration,
             self.total_requests,
             self.rate_per_second,
@@ -192,18 +184,44 @@ impl fmt::Display for BenchRunReport {
 // cov:begin-ignore-line
 impl ExternalMetricsServiceReporter for DefaultConsoleReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()> {
-        let report = BenchRunReport::from(metrics);
+        let report = self.build_report(metrics);
         println!("{}", report);
         println!("{}", "=".repeat(50));
         info!(target: "stats", "{}",
               serde_json::to_string(&report).expect("JSON serialization failed"));
         Ok(())
     }
+
+    fn shutdown(&self) {
+        // do nothing
+    }
 }
 
 impl DefaultConsoleReporter {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(test_case_name: Option<String>) -> Self {
+        Self { test_case_name }
+    }
+
+    fn build_report(&self, metrics: &BenchRunMetrics) -> BenchRunReport {
+        let successful_requests = metrics.successful_requests as usize;
+        let total_requests = metrics.total_requests as usize;
+        let total_bytes = metrics.total_bytes as usize;
+        let duration = Instant::now().duration_since(metrics.bench_begin);
+        BenchRunReport {
+            test_case_name: self
+                .test_case_name
+                .as_ref()
+                .cloned()
+                .or_else(|| Some("perf-gauge".to_string())),
+            duration,
+            total_bytes,
+            total_requests,
+            success_rate: successful_requests as f64 * 100. / total_requests as f64,
+            rate_per_second: total_requests as f64 / duration.as_secs_f64(),
+            bitrate_mbps: total_bytes as f64 / duration.as_secs_f64() * 8. / 1_000_000.,
+            response_code_summary: BenchRunReport::summary_ordered(&metrics),
+            latency_summary: BenchRunReport::latency_summary(&metrics),
+        }
     }
 }
 // cov:end-ignore-line
@@ -211,7 +229,7 @@ impl DefaultConsoleReporter {
 #[cfg(test)]
 mod tests {
     use crate::bench_run::BenchRun;
-    use crate::metrics::{BenchRunMetrics, BenchRunReport, RequestStats};
+    use crate::metrics::{BenchRunMetrics, DefaultConsoleReporter, RequestStats};
     use crate::rate_limiter::RateLimiter;
     use std::thread::sleep;
     use std::time::Duration;
@@ -237,7 +255,8 @@ mod tests {
             });
         }
 
-        let mut ordered_summary = BenchRunReport::from(&metrics)
+        let mut ordered_summary = DefaultConsoleReporter::new(None)
+            .build_report(&metrics)
             .response_code_summary
             .into_iter();
         assert_eq!(
@@ -263,7 +282,8 @@ mod tests {
             });
         }
 
-        let mut items = BenchRunReport::from(&metrics).latency_summary.into_iter();
+        let report = DefaultConsoleReporter::new(None).build_report(&metrics);
+        let mut items = report.latency_summary.into_iter();
 
         assert_eq!(Some(("Min".to_string(), 0)), items.next());
         assert_eq!(Some(("p50".to_string(), 500)), items.next());
@@ -311,7 +331,8 @@ mod tests {
             });
         }
 
-        let as_str = BenchRunReport::from(&metrics).to_string();
+        let report = DefaultConsoleReporter::new(None).build_report(&metrics);
+        let as_str = report.to_string();
 
         assert!(as_str.contains("Min"));
         assert!(as_str.contains("p50"));

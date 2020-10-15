@@ -49,14 +49,30 @@ async fn main() -> io::Result<()> {
     for batch in bench_session {
         info!("Running next batch {:?}", batch);
         let metrics = BenchRunMetrics::new();
-        if let Ok(stats) = batch.run(metrics).await {
-            batch_metric_sender.send(stats).unwrap_or_default();
+        let batch_run_result = batch.run(metrics).await;
+        match batch_run_result {
+            Ok(stats) if !stats.discard => {
+                batch_metric_sender.send(stats).unwrap_or_default();
+            }
+            Err(e) => {
+                error!("Unexpected error during batch run: {}", e);
+            }
+            _ => {
+                info!("Ignoring metrics");
+            }
         }
     }
+
+    shutdown(reporter_task, batch_metric_sender);
+
+    Ok(())
+}
+
+fn shutdown(reporter_task: JoinHandle<()>, batch_metric_sender: Sender<BenchRunMetrics>) {
+    // we need to drop it explicitly, to signal completion to the `mpsc` thread.
     drop(batch_metric_sender);
     reporter_task.join().unwrap_or_default();
     println!("Done gauging performance. Exiting.");
-    Ok(())
 }
 
 fn create_async_metrics_channel(
@@ -75,6 +91,9 @@ fn create_async_metrics_channel(
                     error!("Error sending metrics: {}", e);
                 }
             }
+        }
+        for reporter in &metric_reporters {
+            reporter.shutdown();
         }
     });
     (reporter_task, sender)

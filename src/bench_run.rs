@@ -150,10 +150,7 @@ mod tests {
                     .build()
                     .expect("RateLadderBuilder failed"),
             )
-            .concurrency(1)
-            .verbose(false)
             .mode(HTTP(http_adapter.clone()))
-            .reporters(vec![])
             .build()
             .expect("BenchmarkConfig failed");
 
