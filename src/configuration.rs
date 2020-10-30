@@ -47,7 +47,7 @@ impl BenchmarkConfig {
                 (@arg NUMBER_OF_REQUESTS: --num_req -n +takes_value "Number of requests.")
                 (@arg DURATION: --duration -d +takes_value "Duration of the test.")
             )
-            (@arg test_case_name: --name -N +takes_value "Test case name. Optional. Can be used for tagging metrics.")
+            (@arg TEST_CASE_NAME: --name -N +takes_value "Test case name. Optional. Can be used for tagging metrics.")
             (@arg RATE: --rate -r +takes_value "Request rate per second. E.g. 100 or 0.1. By default no limit.")
             (@arg RATE_STEP: --rate_step +takes_value "Rate increase step (until it reaches --rate_max).")
             (@arg RATE_MAX: --rate_max +takes_value "Max rate per second. Requires --rate-step")
@@ -70,7 +70,7 @@ impl BenchmarkConfig {
             )
         ).get_matches();
 
-        let test_case_name = matches.value_of("test_case_name").map(|s| s.to_string());
+        let test_case_name = matches.value_of("TEST_CASE_NAME").map(|s| s.to_string());
         let concurrency = matches.value_of("CONCURRENCY").unwrap_or("1");
         let rate_per_second = matches.value_of("RATE");
         let rate_step = matches.value_of("RATE_STEP");
