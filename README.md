@@ -29,32 +29,34 @@ $ perf-gauge help
 A tool for gauging performance of network services
 
 USAGE:
-    perf-gauge [FLAGS] [OPTIONS] [SUBCOMMAND]
+    perf-gauge [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
-    -v, --verbose    Print debug information. Works only with the `TRACE` log level in the log4rs
-                     config. Not recommended for `-n > 500`
     -h, --help       Prints help information
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --concurrency <CONCURRENCY>          Concurrent threads. Default `1`.
-    -d, --duration <DURATION>                Duration of the test.
+    -c, --concurrency <CONCURRENCY>            Concurrent threads. Default `1`.
+    -d, --duration <DURATION>                  Duration of the test.
     -m, --max_iter <MAX_RATE_ITERATIONS>
             The number of iterations with the max rate. By default `1`. Requires --rate-step
 
-    -n, --num_req <NUMBER_OF_REQUESTS>       Number of requests.
+        --noise_threshold <NOISE_THRESHOLD>
+            Noise threshold (in standard deviations) - a positive integer. By default it's `6`,
+            which means latency deviated more than 6 stddev from the mean are ignored
+
+    -n, --num_req <NUMBER_OF_REQUESTS>         Number of requests.
         --prometheus <PROMETHEUS_ADDR>
             If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g.
             10.0.0.1:9091
 
-        --prometheus_job <PROMETHEUS_JOB>    Prometheus Job (by default `pushgateway`)
+        --prometheus_job <PROMETHEUS_JOB>      Prometheus Job (by default `pushgateway`)
     -r, --rate <RATE>
             Request rate per second. E.g. 100 or 0.1. By default no limit.
 
-        --rate_max <RATE_MAX>                Max rate per second. Requires --rate-step
-        --rate_step <RATE_STEP>              Rate increase step (until it reaches --rate_max).
-    -N, --name <test_case_name>
+        --rate_max <RATE_MAX>                  Max rate per second. Requires --rate-step
+        --rate_step <RATE_STEP>                Rate increase step (until it reaches --rate_max).
+    -N, --name <TEST_CASE_NAME>
             Test case name. Optional. Can be used for tagging metrics.
 
 

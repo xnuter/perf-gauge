@@ -54,7 +54,7 @@ impl BenchmarkConfig {
             (@arg RATE_STEP: --rate_step +takes_value "Rate increase step (until it reaches --rate_max).")
             (@arg RATE_MAX: --rate_max +takes_value "Max rate per second. Requires --rate-step")
             (@arg MAX_RATE_ITERATIONS: --max_iter -m +takes_value "The number of iterations with the max rate. By default `1`. Requires --rate-step")
-            (@arg NOISE_THRESHOLD: --noise_threshold "Noise threshold (in standard deviations) - a positive integer. By default it's `6`, which means latency deviated more than 6 stddev from the mean are ignored")
+            (@arg NOISE_THRESHOLD: --noise_threshold +takes_value "Noise threshold (in standard deviations) - a positive integer. By default it's `6`, which means latency deviated more than 6 stddev from the mean are ignored")
             (@arg PROMETHEUS_ADDR: --prometheus +takes_value "If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g. 10.0.0.1:9091")
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
             (@subcommand http =>
