@@ -25,7 +25,6 @@ pub struct BenchRunMetrics {
     pub(crate) summary: HashMap<String, i32>,
     pub(crate) success_latency: Histogram,
     pub(crate) error_latency: Histogram,
-    pub(crate) discard: bool,
 }
 
 /// Default reporter that prints stats to console.
@@ -60,7 +59,6 @@ impl BenchRunMetrics {
             summary: Default::default(),
             success_latency: Default::default(),
             error_latency: Default::default(),
-            discard: false,
         }
     }
 
@@ -78,6 +76,45 @@ impl BenchRunMetrics {
         }
         self.total_bytes += stats.bytes_processed;
         self.summary.entry(stats.status).or_insert(0).add_assign(1);
+    }
+
+    pub fn reduce_noise(&self, sigmas: usize) -> Self {
+        Self {
+            bench_begin: self.bench_begin,
+            total_bytes: self.total_bytes,
+            total_requests: self.total_requests,
+            successful_requests: self.successful_requests,
+            summary: self.summary.clone(),
+            success_latency: BenchRunMetrics::remove_noise(&self.success_latency, sigmas),
+            error_latency: self.error_latency.clone(),
+        }
+    }
+
+    fn remove_noise(histogram: &Histogram, sigmas: usize) -> Histogram {
+        let mean = histogram.mean().unwrap_or_default() as i64;
+        let stddev = histogram.stddev().unwrap_or_default() as i64;
+        let mut result = Histogram::new();
+        let mut ignored_count = 0;
+        let mut total_count = 0;
+        for bucket in histogram.into_iter() {
+            total_count += bucket.count();
+            if bucket.count() > 0 && (bucket.value() as i64 - mean).abs() < stddev * sigmas as i64 {
+                for _ in 0..bucket.count() {
+                    result
+                        .increment(bucket.value())
+                        .expect("Histogram failure during noise reduction");
+                }
+            } else {
+                ignored_count += bucket.count();
+            }
+        }
+        info!(
+            "Noise reduction: ignored {} data points out of {}, the %={:.6}",
+            ignored_count,
+            total_count,
+            ignored_count as f64 * 100. / total_count as f64
+        );
+        result
     }
 }
 

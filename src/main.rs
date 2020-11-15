@@ -51,14 +51,13 @@ async fn main() -> io::Result<()> {
         let metrics = BenchRunMetrics::new();
         let batch_run_result = batch.run(metrics).await;
         match batch_run_result {
-            Ok(stats) if !stats.discard => {
-                batch_metric_sender.send(stats).unwrap_or_default();
+            Ok(stats) => {
+                batch_metric_sender
+                    .send(stats.reduce_noise(benchmark_config.noise_threshold))
+                    .unwrap_or_default();
             }
             Err(e) => {
                 error!("Unexpected error during batch run: {}", e);
-            }
-            _ => {
-                info!("Ignoring metrics");
             }
         }
     }

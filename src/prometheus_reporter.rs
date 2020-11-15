@@ -154,6 +154,12 @@ impl PrometheusReporter {
                 counts.push(bucket.count());
             }
         }
+        info!(
+            "Prometheus histogram {}: buckets {}, observations {}",
+            name,
+            buckets.len(),
+            counts.iter().sum::<u64>()
+        );
         let prometheus_histogram = prometheus::Histogram::with_opts(
             HistogramOpts::new(name, help).buckets(buckets.clone()),
         )

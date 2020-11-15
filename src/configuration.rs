@@ -29,6 +29,8 @@ pub struct BenchmarkConfig {
     pub verbose: bool,
     #[builder(default = "1")]
     pub concurrency: usize,
+    #[builder(default = "6")]
+    pub noise_threshold: usize,
     pub rate_ladder: RateLadder,
     pub mode: BenchmarkMode,
     #[builder(default)]
@@ -52,7 +54,7 @@ impl BenchmarkConfig {
             (@arg RATE_STEP: --rate_step +takes_value "Rate increase step (until it reaches --rate_max).")
             (@arg RATE_MAX: --rate_max +takes_value "Max rate per second. Requires --rate-step")
             (@arg MAX_RATE_ITERATIONS: --max_iter -m +takes_value "The number of iterations with the max rate. By default `1`. Requires --rate-step")
-            (@arg VERBOSE: --verbose -v "Print debug information. Works only with the `TRACE` log level in the log4rs config. Not recommended for `-n > 500`")
+            (@arg NOISE_THRESHOLD: --noise_threshold "Noise threshold (in standard deviations) - a positive integer. By default it's `6`, which means latency deviated more than 6 stddev from the mean are ignored")
             (@arg PROMETHEUS_ADDR: --prometheus +takes_value "If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g. 10.0.0.1:9091")
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
             (@subcommand http =>
@@ -75,8 +77,8 @@ impl BenchmarkConfig {
         let rate_per_second = matches.value_of("RATE");
         let rate_step = matches.value_of("RATE_STEP");
         let rate_max = matches.value_of("RATE_MAX");
+        let noise_threshold = matches.value_of("NOISE_THRESHOLD");
         let max_rate_iterations = matches.value_of("MAX_RATE_ITERATIONS").unwrap_or("1");
-        let verbose = matches.is_present("VERBOSE");
 
         let duration = matches.value_of("DURATION").map(|d| {
             humantime::Duration::from_str(d)
@@ -133,14 +135,18 @@ impl BenchmarkConfig {
             .name(test_case_name)
             .rate_ladder(rate_ladder)
             .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
-            .verbose(verbose)
-            .mode(BenchmarkConfig::build_mode(&matches, verbose))
+            .noise_threshold(parse_num(
+                noise_threshold.unwrap_or("6"),
+                "Cannot parse NOISE_THRESHOLD",
+            ))
+            .verbose(false)
+            .mode(BenchmarkConfig::build_mode(&matches))
             .reporters(metrics_destinations)
             .build()
             .expect("BenchmarkConfig failed"))
     }
 
-    fn build_mode(matches: &ArgMatches, verbose: bool) -> BenchmarkMode {
+    fn build_mode(matches: &ArgMatches) -> BenchmarkMode {
         let mode = if let Some(config) = matches.subcommand_matches("http") {
             let http_config = HttpBenchAdapterBuilder::default()
                 .url(
@@ -162,7 +168,6 @@ impl BenchmarkConfig {
                         .map(|s| base64::decode(s).expect("Invalid base64"))
                         .unwrap_or_else(Vec::new),
                 )
-                .verbose(verbose)
                 .build()
                 .expect("BenchmarkModeBuilder failed");
             BenchmarkMode::HTTP(http_config)
