@@ -187,18 +187,8 @@ mod tests {
             .build()
             .expect("Failed to build");
 
-        // warm-up
         assert_eq!(5000., rate_ladder.get_current());
 
-        // first-iteration
-        rate_ladder.increment_rate();
-        assert_eq!(5000., rate_ladder.get_current());
-
-        // second iteration
-        rate_ladder.increment_rate();
-        assert_eq!(10000., rate_ladder.get_current());
-
-        // cool-down
         rate_ladder.increment_rate();
         assert_eq!(10000., rate_ladder.get_current());
 
@@ -220,14 +210,8 @@ mod tests {
             .build()
             .expect("Failed to build");
 
-        // warm-up
         assert_eq!(5000., rate_ladder.get_current());
 
-        // first-iteration
-        rate_ladder.increment_rate();
-        assert_eq!(5000., rate_ladder.get_current());
-
-        // second iteration
         rate_ladder.increment_rate();
         assert_eq!(10000., rate_ladder.get_current());
 
@@ -235,10 +219,6 @@ mod tests {
             rate_ladder.increment_rate();
             assert_eq!(10000., rate_ladder.get_current());
         }
-
-        // cool-down
-        rate_ladder.increment_rate();
-        assert_eq!(10000., rate_ladder.get_current());
 
         // done
         rate_ladder.increment_rate();
