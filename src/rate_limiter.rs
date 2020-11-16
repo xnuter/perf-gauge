@@ -28,6 +28,10 @@ impl RateLimiter {
                 rate /= 10.;
                 int_ms /= 10;
             }
+            while (rate - rate.round()).abs() > 0.1 {
+                rate *= 2.;
+                int_ms *= 2;
+            }
             (rate, Duration::from_millis(int_ms))
         } else {
             (
