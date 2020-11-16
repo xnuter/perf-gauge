@@ -145,15 +145,30 @@ impl BenchRunReport {
         latency.merge(&metrics.error_latency);
 
         vec![
-            ("Min".to_string(), latency.minimum().unwrap()),
-            ("p50".to_string(), latency.percentile(50.0).unwrap()),
-            ("p90".to_string(), latency.percentile(90.0).unwrap()),
-            ("p99".to_string(), latency.percentile(99.0).unwrap()),
-            ("p99.9".to_string(), latency.percentile(99.9).unwrap()),
-            ("p99.99".to_string(), latency.percentile(99.99).unwrap()),
-            ("Max".to_string(), latency.maximum().unwrap()),
-            ("Avg".to_string(), latency.mean().unwrap()),
-            ("StdDev".to_string(), latency.stddev().unwrap()),
+            ("Min".to_string(), latency.minimum().unwrap_or_default()),
+            (
+                "p50".to_string(),
+                latency.percentile(50.0).unwrap_or_default(),
+            ),
+            (
+                "p90".to_string(),
+                latency.percentile(90.0).unwrap_or_default(),
+            ),
+            (
+                "p99".to_string(),
+                latency.percentile(99.0).unwrap_or_default(),
+            ),
+            (
+                "p99.9".to_string(),
+                latency.percentile(99.9).unwrap_or_default(),
+            ),
+            (
+                "p99.99".to_string(),
+                latency.percentile(99.99).unwrap_or_default(),
+            ),
+            ("Max".to_string(), latency.maximum().unwrap_or_default()),
+            ("Mean".to_string(), latency.mean().unwrap_or_default()),
+            ("StdDev".to_string(), latency.stddev().unwrap_or_default()),
         ]
     }
 }
@@ -329,7 +344,7 @@ mod tests {
         assert_eq!(Some(("p99.9".to_string(), 999)), items.next());
         assert_eq!(Some(("p99.99".to_string(), 999)), items.next());
         assert_eq!(Some(("Max".to_string(), 999)), items.next());
-        assert_eq!(Some(("Avg".to_string(), 500)), items.next());
+        assert_eq!(Some(("Mean".to_string(), 500)), items.next());
         assert_eq!(Some(("StdDev".to_string(), 289)), items.next());
     }
 
@@ -378,7 +393,7 @@ mod tests {
         assert!(as_str.contains("p99.9"));
         assert!(as_str.contains("p99.99"));
         assert!(as_str.contains("Max"));
-        assert!(as_str.contains("Avg"));
+        assert!(as_str.contains("Mean"));
         assert!(as_str.contains("StdDev"));
     }
 }

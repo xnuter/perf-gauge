@@ -175,6 +175,50 @@ impl PrometheusReporter {
                 prometheus_histogram.observe(buckets[i] as f64);
             }
         }
+
+        PrometheusReporter::register_histogram_precalculated(registry, name, help, histogram);
+    }
+
+    fn register_histogram_precalculated(
+        registry: &Registry,
+        name: &str,
+        help: &str,
+        histogram: Histogram,
+    ) {
+        let percentiles = vec![
+            ("min".to_string(), histogram.minimum().unwrap_or_default()),
+            (
+                "p50".to_string(),
+                histogram.percentile(50.0).unwrap_or_default(),
+            ),
+            (
+                "p90".to_string(),
+                histogram.percentile(90.0).unwrap_or_default(),
+            ),
+            (
+                "p99".to_string(),
+                histogram.percentile(99.0).unwrap_or_default(),
+            ),
+            (
+                "p99_9".to_string(),
+                histogram.percentile(99.9).unwrap_or_default(),
+            ),
+            (
+                "p99_99".to_string(),
+                histogram.percentile(99.99).unwrap_or_default(),
+            ),
+            ("max".to_string(), histogram.maximum().unwrap_or_default()),
+            ("mean".to_string(), histogram.mean().unwrap_or_default()),
+            ("stddev".to_string(), histogram.stddev().unwrap_or_default()),
+        ];
+        for (label, value) in percentiles {
+            PrometheusReporter::register_gauge(
+                registry,
+                format!("{}_{}", name, label).as_str(),
+                format!("{} {}", help, label).as_str(),
+                value as i64,
+            );
+        }
     }
 }
 
@@ -237,7 +281,7 @@ mod test {
 
         let metrics = registry.gather();
 
-        assert_eq!(1, metrics.len());
+        assert_eq!(10, metrics.len());
         assert_eq!("latency", metrics[0].get_name());
         assert_eq!("Latency of requests", metrics[0].get_help());
         assert_eq!(MetricType::HISTOGRAM, metrics[0].get_field_type());
@@ -251,6 +295,24 @@ mod test {
         assert_eq!(2, buckets[1].get_cumulative_count());
         assert_eq!(300., buckets[2].get_upper_bound());
         assert_eq!(4, buckets[2].get_cumulative_count());
+
+        let mut precalculated = vec![
+            "latency_min",
+            "latency_p50",
+            "latency_p90",
+            "latency_p99",
+            "latency_p99_9",
+            "latency_p99_99",
+            "latency_max",
+            "latency_mean",
+            "latency_stddev",
+        ];
+
+        precalculated.sort();
+
+        for (i, label) in precalculated.iter().enumerate() {
+            assert_eq!(*label, metrics[i + 1].get_name());
+        }
     }
 
     #[test]
