@@ -18,13 +18,22 @@ It works in the following modes:
 1. Increase the request rate linearly, e.g. by `1,000` every minute to see how your service scales with load.
 1. It can report metrics to `Prometheus` via a `pushgateway`.
 
-E.g. ![](https://raw.githubusercontent.com/xnuter/http-tunnel/main/misc/benchmarks/http-tunnel-rust.png).
+For instance: ![](https://raw.githubusercontent.com/xnuter/http-tunnel/main/misc/benchmarks/http-tunnel-rust.png).
+
+Emitted metrics are:
+* `request_count` - counter for all requests
+* `success_count` - counter for only successful requests
+* `bytes_count` - total bytes transferred
+* `response_codes` - counters for response codes (200, 400, etc.)
+* `success_latency` - latency histogram of successful requests only
+* `error_latency` - latency histogram of failed requests (if any)
+* `latency` - latency histogram across all requests
+* `latency_{statistic}` - `{statistic} = {min, mean, max, stddev, p50, p90, p99, p99_9, p99_99}` - gauges for latency statistics
 
 You can [read more here](https://github.com/xnuter/http-tunnel/wiki/Benchmarking-the-HTTP-Tunnel-vs-Chisel-(Golang)).
 
 Usage
 ======
-
 
 Install cargo - follow these [instructions](https://doc.rust-lang.org/cargo/getting-started/installation.html).
 
