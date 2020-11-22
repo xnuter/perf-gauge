@@ -18,7 +18,7 @@ It works in the following modes:
 1. Increase the request rate linearly, e.g. by `1,000` every minute to see how your service scales with load.
 1. It can report metrics to `Prometheus` via a `pushgateway`.
 
-E.g. ![](https://raw.githubusercontent.com/xnuter/http-tunnel/master/misc/benchmarks/http-tunnel-rust.png).
+E.g. ![](https://raw.githubusercontent.com/xnuter/http-tunnel/main/misc/benchmarks/http-tunnel-rust.png).
 
 You can [read more here](https://github.com/xnuter/http-tunnel/wiki/Benchmarking-the-HTTP-Tunnel-vs-Chisel-(Golang)).
 
