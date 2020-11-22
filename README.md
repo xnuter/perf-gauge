@@ -25,7 +25,23 @@ You can [read more here](https://github.com/xnuter/http-tunnel/wiki/Benchmarking
 Usage
 ======
 
-Install with `cargo`
+
+Install cargo - follow these [instructions](https://doc.rust-lang.org/cargo/getting-started/installation.html).
+
+On Debian to fix [OpenSSL build issue](https://docs.rs/openssl/0.10.30/openssl/). E.g. on Debian:
+
+```
+sudo apt-get install pkg-config libssl-dev
+```
+
+on `Red-Hat`:
+```
+sudo dnf install pkg-config openssl-devel
+# or
+sudo yum install pkg-config openssl-devel
+```
+
+Then:
 ```
 $ cargo install perf-gauage
 $ perf-gauge help 
