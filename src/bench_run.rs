@@ -9,6 +9,7 @@ use crate::rate_limiter::RateLimiter;
 /// except according to those terms.
 use async_trait::async_trait;
 use log::error;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::Sender;
 
@@ -19,7 +20,7 @@ pub struct BenchRun {
     requests_sent: usize,
     max_requests: Option<usize>,
     max_duration: Option<Duration>,
-    rate_limiter: RateLimiter,
+    rate_limiter: Arc<RateLimiter>,
 }
 
 #[async_trait]
@@ -34,7 +35,7 @@ impl BenchRun {
     pub fn with_request_limit(
         index: usize,
         max_requests: usize,
-        rate_limiter: RateLimiter,
+        rate_limiter: Arc<RateLimiter>,
     ) -> Self {
         Self::new(index, Some(max_requests), None, rate_limiter)
     }
@@ -42,7 +43,7 @@ impl BenchRun {
     pub fn with_duration_limit(
         index: usize,
         max_duration: Duration,
-        rate_limiter: RateLimiter,
+        rate_limiter: Arc<RateLimiter>,
     ) -> Self {
         Self::new(index, None, Some(max_duration), rate_limiter)
     }
@@ -51,7 +52,7 @@ impl BenchRun {
         index: usize,
         max_requests: Option<usize>,
         max_duration: Option<Duration>,
-        rate_limiter: RateLimiter,
+        rate_limiter: Arc<RateLimiter>,
     ) -> Self {
         assert!(
             max_duration.is_some() || max_requests.is_some(),

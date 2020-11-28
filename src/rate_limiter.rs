@@ -28,7 +28,7 @@ impl RateLimiter {
                 rate /= 10.;
                 int_ms /= 10;
             }
-            while (rate - rate.round()).abs() > 0.1 {
+            while (rate - rate.round()).abs() > 0.01 {
                 rate *= 2.;
                 int_ms *= 2;
             }
@@ -40,7 +40,12 @@ impl RateLimiter {
             )
         };
 
-        info!("Rate limiter: {} per {:?}", amount, interval);
+        info!(
+            "Rate limiter: {} per {:?}. Per second: {}",
+            amount,
+            interval,
+            amount / interval.as_secs_f64()
+        );
 
         let mut buckets = LeakyBuckets::new();
         let coordinator = buckets.coordinate().expect("no other running coordinator");
@@ -62,6 +67,7 @@ impl RateLimiter {
                     // to compensate overhead let's add a bit to the rate
                     .refill_amount((amount * 1.01) as usize)
                     .refill_interval(interval)
+                    .max(amount as usize * 100)
                     .build()
                     .expect("LeakyBucket builder failed"),
             ),

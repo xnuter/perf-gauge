@@ -31,28 +31,17 @@ use std::thread;
 use std::thread::JoinHandle;
 use tokio::io;
 
-fn main() -> io::Result<()> {
+#[tokio::main]
+async fn main() -> io::Result<()> {
     init_logger();
 
-    let benchmark_config = BenchmarkConfig::from_command_line().map_err(|e| {
+    let mut benchmark_config = BenchmarkConfig::from_command_line().map_err(|e| {
         println!("Failed to process parameters. Exiting.");
         e
     })?;
 
     info!("Starting with configuration {}", benchmark_config);
 
-    tokio::runtime::Builder::new()
-        .threaded_scheduler()
-        .thread_name("perf-gauge-thread")
-        .thread_stack_size(2 * 1024 * 1024)
-        .core_threads(benchmark_config.concurrency)
-        .enable_all()
-        .build()
-        .expect("Failed to build tokio::runtime")
-        .block_on(async move { do_benchmark(benchmark_config).await })
-}
-
-async fn do_benchmark(mut benchmark_config: BenchmarkConfig) -> io::Result<()> {
     let (reporter_task, batch_metric_sender) =
         create_async_metrics_channel(benchmark_config.reporters.clone());
     let bench_session = benchmark_config.new_bench_session();
