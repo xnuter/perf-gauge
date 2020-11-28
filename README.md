@@ -11,7 +11,7 @@ However, it's easily extendable to other protocols.
 
 It works in the following modes:
 
-1. `ab`-like mode. Just send traffic to an endpoint for a given duration or a number of requests. 
+1. `ab`-like mode. Just send traffic to an endpoint for a given duration, or a number of requests. 
    1. Unlimited request rate (to find the max throughput).
    1. Choose the request rate and concurrency level.
    1. Measurements are down to `µs`.
