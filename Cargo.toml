@@ -1,6 +1,6 @@
 [package]
 name = "perf-gauge"
-version = "0.0.6"
+version = "0.0.7"
 authors = ["Eugene Retunsky"]
 license = "MIT OR Apache-2.0"
 edition = "2018"

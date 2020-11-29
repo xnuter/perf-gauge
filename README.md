@@ -65,7 +65,7 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --concurrency <CONCURRENCY>            Concurrent threads. Default `1`.
+    -c, --concurrency <CONCURRENCY>            Concurrent clients. Default `1`.
     -d, --duration <DURATION>                  Duration of the test.
     -m, --max_iter <MAX_RATE_ITERATIONS>
             The number of iterations with the max rate. By default `1`. Requires --rate-step
