@@ -283,7 +283,6 @@ mod tests {
     use crate::bench_run::BenchRun;
     use crate::metrics::{BenchRunMetrics, DefaultConsoleReporter, RequestStats};
     use crate::rate_limiter::RateLimiter;
-    use std::sync::Arc;
     use std::thread::sleep;
     use std::time::Duration;
 
@@ -352,11 +351,8 @@ mod tests {
     #[test]
     fn test_has_more_work_request_limit() {
         let requests = 10;
-        let mut metrics = BenchRun::with_request_limit(
-            0,
-            requests,
-            Arc::new(RateLimiter::build_rate_limiter(0.)),
-        );
+        let mut metrics =
+            BenchRun::with_request_limit(0, requests, RateLimiter::build_rate_limiter(0.));
         for _ in 0..requests {
             assert!(metrics.has_more_work());
         }
@@ -366,11 +362,8 @@ mod tests {
     #[test]
     fn test_has_more_work_time_limit() {
         let duration = Duration::from_secs(1);
-        let mut metrics = BenchRun::with_duration_limit(
-            0,
-            duration,
-            Arc::new(RateLimiter::build_rate_limiter(0.)),
-        );
+        let mut metrics =
+            BenchRun::with_duration_limit(0, duration, RateLimiter::build_rate_limiter(0.));
         for _ in 0..1000 {
             assert!(metrics.has_more_work());
         }

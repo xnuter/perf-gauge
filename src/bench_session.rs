@@ -45,9 +45,6 @@ pub struct RateLadder {
     max_rate_iterations: usize,
 }
 
-const MAX_RATE_LIMIT: f64 = 2000.;
-const MAX_SHARED_SESSIONS: usize = 16;
-
 impl Iterator for BenchSession {
     type Item = BenchBatch;
 
@@ -60,31 +57,22 @@ impl Iterator for BenchSession {
 
         let mut items = vec![];
 
-        // create a pool of rate limiters with max rate capped
-        // and sharing with at most MAX_SHARED_SESSIONS sessions
-        let mut rate_limiter_count = 1;
-        while rate_limiter_count < self.concurrency
-            && (current / rate_limiter_count as f64 > MAX_RATE_LIMIT
-                || rate_limiter_count * MAX_SHARED_SESSIONS < self.concurrency
-                || self.concurrency % rate_limiter_count != 0)
-        {
-            rate_limiter_count += 1;
-        }
-        let rate_limiters: Vec<Arc<RateLimiter>> = (0..rate_limiter_count)
-            .map(|_| {
-                Arc::new(RateLimiter::build_rate_limiter(
-                    current as f64 / rate_limiter_count as f64,
-                ))
-            })
-            .collect();
+        let rate_per_second = current / self.concurrency as f64;
 
         for i in 0..self.concurrency {
             let idx = i + self.current_iteration * self.concurrency;
-            let rate_limiter = rate_limiters[i % rate_limiter_count].clone();
             items.push(if let Some(requests) = self.rate_ladder.step_requests {
-                BenchRun::with_request_limit(idx, requests, rate_limiter)
+                BenchRun::with_request_limit(
+                    idx,
+                    requests,
+                    RateLimiter::build_rate_limiter(rate_per_second),
+                )
             } else if let Some(duration) = self.rate_ladder.step_duration {
-                BenchRun::with_duration_limit(idx, duration, rate_limiter)
+                BenchRun::with_duration_limit(
+                    idx,
+                    duration,
+                    RateLimiter::build_rate_limiter(rate_per_second),
+                )
             } else {
                 unreachable!();
             });

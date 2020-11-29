@@ -25,7 +25,6 @@ You can [read more here](https://github.com/xnuter/http-tunnel/wiki/Benchmarking
 Usage
 ======
 
-
 Install cargo - follow these [instructions](https://doc.rust-lang.org/cargo/getting-started/installation.html).
 
 On Debian to fix [OpenSSL build issue](https://docs.rs/openssl/0.10.30/openssl/). E.g. on Debian:
@@ -56,7 +55,7 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --concurrency <CONCURRENCY>            Concurrent threads. Default `1`.
+    -c, --concurrency <CONCURRENCY>            Concurrent clients. Default `1`.
     -d, --duration <DURATION>                  Duration of the test.
     -m, --max_iter <MAX_RATE_ITERATIONS>
             The number of iterations with the max rate. By default `1`. Requires --rate-step

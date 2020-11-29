@@ -21,24 +21,7 @@ impl RateLimiter {
             return RateLimiter { leaky_bucket: None };
         }
 
-        let (amount, interval) = if rate_per_second > 1. {
-            let mut rate = rate_per_second;
-            let mut int_ms = 1000;
-            while int_ms > 10 && rate > 10. {
-                rate /= 10.;
-                int_ms /= 10;
-            }
-            while (rate - rate.round()).abs() > 0.01 {
-                rate *= 2.;
-                int_ms *= 2;
-            }
-            (rate, Duration::from_millis(int_ms))
-        } else {
-            (
-                1.,
-                Duration::from_millis((1. / rate_per_second * 1000.) as u64),
-            )
-        };
+        let (amount, interval) = RateLimiter::rate_to_refill_amount_and_duration(rate_per_second);
 
         info!(
             "Rate limiter: {} per {:?}. Per second: {}",
@@ -83,12 +66,39 @@ impl RateLimiter {
             }),
         }
     }
+
+    fn gcd(mut a: usize, mut b: usize) -> usize {
+        while b != 0 {
+            let t = b;
+            b = a % b;
+            a = t;
+        }
+        a
+    }
+
+    fn rate_to_refill_amount_and_duration(rate_per_second: f64) -> (f64, Duration) {
+        if rate_per_second > 1. {
+            let mut rate = rate_per_second as usize;
+            let mut int_ms = 1000;
+
+            let gcd = RateLimiter::gcd(rate, int_ms);
+            rate /= gcd;
+            int_ms /= gcd;
+
+            (rate as f64, Duration::from_millis(int_ms as u64))
+        } else {
+            (
+                1.,
+                Duration::from_millis((1. / rate_per_second * 1000.) as u64),
+            )
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::rate_limiter::RateLimiter;
-    use std::time::Instant;
+    use std::time::{Duration, Instant};
 
     #[tokio::test]
     async fn test_limited_frequent() {
@@ -125,5 +135,33 @@ mod tests {
         let elapsed = Instant::now().duration_since(begin);
         println!("Elapsed: {:?}", elapsed);
         assert!(elapsed.as_secs_f64() < 1.);
+    }
+
+    #[test]
+    fn test_rate_to_refill_amount_and_duration() {
+        let test = vec![
+            (0.1, (1., Duration::from_secs(10))),
+            (0.5, (1., Duration::from_secs(2))),
+            (1., (1., Duration::from_secs(1))),
+            (2., (1., Duration::from_millis(500))),
+            (5., (1., Duration::from_millis(200))),
+            (100., (1., Duration::from_millis(10))),
+            (150., (3., Duration::from_millis(20))),
+            (250., (1., Duration::from_millis(4))),
+            (300., (3., Duration::from_millis(10))),
+            (1000., (1., Duration::from_millis(1))),
+            (1250., (5., Duration::from_millis(4))),
+            (1500., (3., Duration::from_millis(2))),
+            (2000., (2., Duration::from_millis(1))),
+            (2222., (1111., Duration::from_millis(500))),
+            (5000., (5., Duration::from_millis(1))),
+        ];
+
+        test.iter().for_each(|(rate, (amount, duration))| {
+            assert_eq!(
+                RateLimiter::rate_to_refill_amount_and_duration(*rate),
+                (*amount, *duration)
+            );
+        });
     }
 }
