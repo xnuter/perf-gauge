@@ -12,6 +12,7 @@ use crate::prometheus_reporter::PrometheusReporter;
 use clap::{clap_app, ArgMatches};
 use core::fmt;
 use serde::export::Formatter;
+use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io;
@@ -29,7 +30,7 @@ pub struct BenchmarkConfig {
     pub verbose: bool,
     #[builder(default = "1")]
     pub concurrency: usize,
-    #[builder(default = "6")]
+    #[builder(default = "1000")]
     pub noise_threshold: usize,
     pub rate_ladder: RateLadder,
     pub mode: BenchmarkMode,
@@ -124,6 +125,12 @@ impl BenchmarkConfig {
         )))];
 
         if let Some(prometheus_addr) = matches.value_of("PROMETHEUS_ADDR") {
+            if Err(e) = SocketAddr::from_str(prometheus_addr) {
+                panic!(
+                    "Illegal Prometheus Gateway addr `{}`, error: {:?}",
+                    prometheus_addr, e
+                );
+            }
             metrics_destinations.push(Arc::new(Box::new(PrometheusReporter::new(
                 test_case_name.clone(),
                 prometheus_addr.to_string(),
@@ -136,7 +143,7 @@ impl BenchmarkConfig {
             .rate_ladder(rate_ladder)
             .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
             .noise_threshold(parse_num(
-                noise_threshold.unwrap_or("6"),
+                noise_threshold.unwrap_or("1000"),
                 "Cannot parse NOISE_THRESHOLD",
             ))
             .verbose(false)
