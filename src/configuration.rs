@@ -125,11 +125,8 @@ impl BenchmarkConfig {
         )))];
 
         if let Some(prometheus_addr) = matches.value_of("PROMETHEUS_ADDR") {
-            if Err(e) = SocketAddr::from_str(prometheus_addr) {
-                panic!(
-                    "Illegal Prometheus Gateway addr `{}`, error: {:?}",
-                    prometheus_addr, e
-                );
+            if SocketAddr::from_str(prometheus_addr).is_err() {
+                panic!("Illegal Prometheus Gateway addr `{}`", prometheus_addr);
             }
             metrics_destinations.push(Arc::new(Box::new(PrometheusReporter::new(
                 test_case_name.clone(),
