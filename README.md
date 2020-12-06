@@ -83,7 +83,7 @@ OPTIONS:
     -r, --rate <RATE>
             Request rate per second. E.g. 100 or 0.1. By default no limit.
 
-        --rate_max <RATE_MAX>                  Max rate per second. Requires --rate-step
+        --rate_max <RATE_MAX>                  Max rate per second.
         --rate_step <RATE_STEP>                Rate increase step (until it reaches --rate_max).
     -N, --name <TEST_CASE_NAME>
             Test case name. Optional. Can be used for tagging metrics.
