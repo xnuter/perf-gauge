@@ -43,17 +43,19 @@ pub struct RateLadder {
     current: f64,
     #[builder(default = "1")]
     max_rate_iterations: usize,
+    #[builder(default = "false")]
+    complete: bool,
 }
 
 impl Iterator for BenchSession {
     type Item = BenchBatch;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let current = self.rate_ladder.get_current();
-
-        if current > self.rate_ladder.end {
+        if self.rate_ladder.complete {
             return None;
         }
+
+        let current = self.rate_ladder.get_current();
 
         let mut items = vec![];
 
@@ -145,10 +147,14 @@ impl RateLadder {
     }
 
     fn increment_rate(&mut self) {
+        debug_assert!(
+            !self.complete,
+            "Method shouldn't be called if it's complete"
+        );
+
         match self.rate_increment {
             None if self.max_rate_iterations <= 1 => {
-                // only a single iteration, if no rate_increment provided
-                self.current = self.end + 1.;
+                self.complete = true;
             }
             None => {
                 self.max_rate_iterations -= 1;
@@ -156,7 +162,7 @@ impl RateLadder {
             Some(rate_increment) => {
                 // if we add above the `end` rate, then make the last run at the `end` rate
                 let distance_to_end = self.end - self.get_current();
-                let mut increment = rate_increment.min(distance_to_end);
+                let increment = rate_increment.min(distance_to_end);
                 if increment < 1. {
                     if self.max_rate_iterations > 0 {
                         self.max_rate_iterations -= 1;
@@ -165,7 +171,7 @@ impl RateLadder {
                             self.current, self.max_rate_iterations
                         );
                     } else {
-                        increment = 1.;
+                        self.complete = true;
                     }
                 };
                 self.current = self.get_current() + increment;
@@ -197,50 +203,83 @@ mod tests {
 
         // done
         rate_ladder.increment_rate();
-        assert_eq!(10001., rate_ladder.get_current());
+        assert_eq!(10000., rate_ladder.get_current());
+        assert!(rate_ladder.complete);
     }
 
     #[test]
     fn test_rate_ladder_with_max_reps() {
         let max_rate_reps = 10;
+        let max_rate = 10000.;
+        let start = 5000.;
         let mut rate_ladder = RateLadderBuilder::default()
-            .start(5000.)
-            .end(10000.)
-            .rate_increment(Some(5000.))
+            .start(start)
+            .end(max_rate)
+            .rate_increment(Some(start))
             .step_duration(None)
             .step_requests(None)
             .max_rate_iterations(max_rate_reps)
             .build()
             .expect("Failed to build");
 
-        assert_eq!(5000., rate_ladder.get_current());
+        assert_eq!(start, rate_ladder.get_current());
 
         rate_ladder.increment_rate();
-        assert_eq!(10000., rate_ladder.get_current());
+        assert_eq!(max_rate, rate_ladder.get_current());
 
         for _ in 0..max_rate_reps {
             rate_ladder.increment_rate();
-            assert_eq!(10000., rate_ladder.get_current());
+            assert_eq!(max_rate, rate_ladder.get_current());
         }
 
         // done
         rate_ladder.increment_rate();
-        assert_eq!(10001., rate_ladder.get_current());
+        assert_eq!(max_rate, rate_ladder.get_current());
+        assert!(rate_ladder.complete);
     }
 
     #[test]
     fn test_rate_ladder_without_increment() {
+        let start = 5000.;
+        let end = 10000.;
         let mut rate_ladder = RateLadderBuilder::default()
-            .start(5000.)
-            .end(10000.)
+            .start(start)
+            .end(end)
             .rate_increment(None)
             .step_duration(None)
             .step_requests(None)
             .build()
             .expect("Failed to build");
 
-        assert_eq!(5000., rate_ladder.get_current());
+        assert_eq!(start, rate_ladder.get_current());
+        assert!(!rate_ladder.complete);
         rate_ladder.increment_rate();
-        assert_eq!(10001., rate_ladder.get_current());
+        assert_eq!(start, rate_ladder.get_current());
+        assert!(rate_ladder.complete);
+    }
+
+    #[test]
+    fn test_rate_ladder_without_increment_multiple_iterations() {
+        let start = 5000.;
+        let end = 10000.;
+        let max_iterations = 100;
+        let mut rate_ladder = RateLadderBuilder::default()
+            .start(start)
+            .end(end)
+            .rate_increment(None)
+            .step_duration(None)
+            .step_requests(None)
+            .max_rate_iterations(max_iterations)
+            .build()
+            .expect("Failed to build");
+
+        assert_eq!(start, rate_ladder.get_current());
+        assert!(!rate_ladder.complete);
+
+        for i in 0..max_iterations {
+            rate_ladder.increment_rate();
+            assert_eq!(start, rate_ladder.get_current());
+            assert_eq!(i + 1 == max_iterations, rate_ladder.complete);
+        }
     }
 }
