@@ -92,7 +92,8 @@ impl BenchmarkConfig {
             .map(|n| parse_num(n, "Illegal number for NUMBER_OF_REQUESTS"));
 
         let rate_ladder = if let Some(rate_max) = rate_max {
-            let rate_per_second = rate_step.expect("RATE is required if RATE_MAX is specified");
+            let rate_per_second =
+                rate_per_second.expect("RATE is required if RATE_MAX is specified");
             let rate_step = rate_step.expect("RATE_STEP is required if RATE_MAX is specified");
             RateLadderBuilder::default()
                 .start(parse_num(rate_per_second, "Cannot parse RATE"))

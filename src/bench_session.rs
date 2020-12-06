@@ -39,7 +39,7 @@ pub struct RateLadder {
     rate_increment: Option<f64>,
     step_duration: Option<Duration>,
     step_requests: Option<usize>,
-    #[builder(setter(skip))]
+    #[builder(default = "0.0")]
     current: f64,
     #[builder(default = "1")]
     max_rate_iterations: usize,
@@ -146,9 +146,12 @@ impl RateLadder {
 
     fn increment_rate(&mut self) {
         match self.rate_increment {
-            None => {
+            None if self.max_rate_iterations <= 1 => {
                 // only a single iteration, if no rate_increment provided
                 self.current = self.end + 1.;
+            }
+            None => {
+                self.max_rate_iterations -= 1;
             }
             Some(rate_increment) => {
                 // if we add above the `end` rate, then make the last run at the `end` rate
