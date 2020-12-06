@@ -160,7 +160,6 @@ impl RateLadder {
                 self.max_rate_iterations -= 1;
             }
             Some(rate_increment) => {
-                // if we add above the `end` rate, then make the last run at the `end` rate
                 let distance_to_end = self.end - self.get_current();
                 let increment = rate_increment.min(distance_to_end);
                 if increment < 1. {
