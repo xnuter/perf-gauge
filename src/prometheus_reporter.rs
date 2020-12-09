@@ -85,6 +85,24 @@ impl PrometheusReporter {
             "Bytes received/sent",
             bench_run_metrics.total_bytes as i64,
         );
+        PrometheusReporter::register_gauge(
+            &registry,
+            "tm95",
+            "Truncated mean, 95%",
+            bench_run_metrics.truncated_mean(1.) as i64,
+        );
+        PrometheusReporter::register_gauge(
+            &registry,
+            "tm99",
+            "Truncated mean, 99%",
+            bench_run_metrics.truncated_mean(1.) as i64,
+        );
+        PrometheusReporter::register_gauge(
+            &registry,
+            "tm99_9",
+            "Truncated mean, 99.9%",
+            bench_run_metrics.truncated_mean(0.1) as i64,
+        );
 
         PrometheusReporter::register_codes(
             &registry,
