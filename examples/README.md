@@ -62,7 +62,7 @@ adding `1000 RPS` every minute.
 
 ### Baseline 
 
-First of all, let's see how much load can be generated directly to `nginx` and the latency numbers.
+First of all, let's see how much load can be generated directly to `nginx` and what the latency numbers are.
 
 ```
 cgexec -g cpuset:perfgauge --sticky \
@@ -84,7 +84,7 @@ Let me explain the parameters:
 * `--max_iter 15` - perform `15` iterations at the max rate
 * `--name nginx-direct` - the name of the test (used for reporting metrics to `prometheus`)
 * `--prometheus $PROMETHEUS_HOST:9091` - push-gateway `host:port` to send metrics to Prometheus.
-* `http http://local-nginx.org/10kb --conn_reuse` - run in `http` mode to the given endpoint, reusing connections and not checking TLS certs. 
+* `http http://local-nginx.org/10kb --conn_reuse` - run in `http` mode to the given endpoint, reusing connections. 
 
 Please note that we do not benchmark `https` as we're benchmarking TCP proxies, and using `https` would only add noise. 
 
@@ -178,7 +178,7 @@ Mean   :  301µs
 StdDev :  130µs
 ```
 
-We can see it added something on top of the baseline latency:
+We can see it added several tens of microseconds on top of the baseline latency:
 
 ![](./prom/http-tunnel-rust-latency.png)
 
@@ -234,7 +234,7 @@ Mean   :   322µs
 StdDev :   295µs
 ```
 
-We can see it added something on top of the baseline latency:
+It seems that `p99` went up tangibly:
 
 ![](./prom/tcp-proxy-golang-latency.png)
 
