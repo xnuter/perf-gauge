@@ -1,3 +1,16 @@
+- [Methodology](#methodology)
+  * [Nginx configuration](#nginx-configuration)
+  * [Setting up cpu-sets](#setting-up-cpu-sets)
+  * [Prometheus](#prometheus)
+- [Moderate TPS](#moderate-tps)
+  * [Baseline](#baseline)
+  * [HTTP Tunnel benchmark (in TCP mode)](#http-tunnel-benchmark--in-tcp-mode-)
+  * [Tcp-proxy (Golang)](#tcp-proxy--golang-)
+  * [Summary](#summary)
+- [Tail latencies](#tail-latencies)
+- [Highest TPS](#highest-tps)
+- [Conclusion](#conclusion)
+
 ## Methodology
 
 Using an 8-cores instance with the following CPU-sets to isolate components, but at the same time to avoid rule out network delays/noise:
@@ -173,7 +186,7 @@ Or, comparing both side by side (Nginx is on the left, Http-Tunnel is on the rig
 
 ![](./prom/nginx-vs-http-tunnel-rust-latency.png)
 
-#### Tcp-proxy (Golang)
+### Tcp-proxy (Golang)
 
 Let's compare the performance with [tcp-proxy](https://github.com/jpillora/go-tcp-proxy) written in Golang:  
 
@@ -245,7 +258,7 @@ Side by side with http-tunnel (Http-Tunnel-Rust is on the left, Tcp-Proxy-Golang
 
 Let's look at the tail latencies deeper. 
 
-### Tail latencies
+## Tail latencies
 
 Tail latencies we're going to compare are `p99`, 'p99.9' and 'p99.99'.
 Which are the lower boundaries for the worst `1%`, `0.1%` and `0.01%` respectively.
@@ -281,7 +294,7 @@ Or, comparing `p99.9` and `p99.99` side by side (`nginx baseline`, `http-tunnel-
 
 ![](./prom/compare-all-tail-latency-moderate-tps.png)
 
-### Highest TPS
+## Highest TPS
 
 Okay, let's know evaluate service's bandwidth. For that we can run the following command:
 
@@ -316,4 +329,7 @@ And the same for the tail latencies:
 
 ![](./prom/compare-all-tail-latency-highest-tps.png)
 
-So the Rust based proxy seems to be better at handling stress. 
+## Conclusion
+
+While Rust-based and Golang-based proxies are comparable at `p50` and `p90` level for moderate TPS,
+the Rust-based one has better tail latencies, especially under stress.  
