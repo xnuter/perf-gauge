@@ -78,8 +78,7 @@ impl BenchRunMetrics {
         self.summary.entry(stats.status).or_insert(0).add_assign(1);
     }
 
-    pub fn truncated_mean(&self, threshold: f64) -> u64 {
-        let histogram = &self.success_latency;
+    pub fn truncated_mean(histogram: &Histogram, threshold: f64) -> u64 {
         let lowest = histogram.percentile(threshold).unwrap_or_default() as i64;
         let highest = histogram.percentile(100. - threshold).unwrap_or_default() as i64;
         let mut ignored_count = 0;
@@ -162,9 +161,18 @@ impl BenchRunReport {
             ("Max".to_string(), latency.maximum().unwrap_or_default()),
             ("Mean".to_string(), latency.mean().unwrap_or_default()),
             ("StdDev".to_string(), latency.stddev().unwrap_or_default()),
-            ("tm95".to_string(), metrics.truncated_mean(5.0)),
-            ("tm99".to_string(), metrics.truncated_mean(1.0)),
-            ("tm99.9".to_string(), metrics.truncated_mean(0.1)),
+            (
+                "tm95".to_string(),
+                BenchRunMetrics::truncated_mean(&latency, 5.0),
+            ),
+            (
+                "tm99".to_string(),
+                BenchRunMetrics::truncated_mean(&latency, 1.0),
+            ),
+            (
+                "tm99.9".to_string(),
+                BenchRunMetrics::truncated_mean(&latency, 0.1),
+            ),
         ]
     }
 }

@@ -85,24 +85,6 @@ impl PrometheusReporter {
             "Bytes received/sent",
             bench_run_metrics.total_bytes as i64,
         );
-        PrometheusReporter::register_gauge(
-            &registry,
-            "tm95",
-            "Truncated mean, 95%",
-            bench_run_metrics.truncated_mean(1.) as i64,
-        );
-        PrometheusReporter::register_gauge(
-            &registry,
-            "tm99",
-            "Truncated mean, 99%",
-            bench_run_metrics.truncated_mean(1.) as i64,
-        );
-        PrometheusReporter::register_gauge(
-            &registry,
-            "tm99_9",
-            "Truncated mean, 99.9%",
-            bench_run_metrics.truncated_mean(0.1) as i64,
-        );
 
         PrometheusReporter::register_codes(
             &registry,
@@ -228,6 +210,18 @@ impl PrometheusReporter {
             ("max".to_string(), histogram.maximum().unwrap_or_default()),
             ("mean".to_string(), histogram.mean().unwrap_or_default()),
             ("stddev".to_string(), histogram.stddev().unwrap_or_default()),
+            (
+                "tm95".to_string(),
+                BenchRunMetrics::truncated_mean(&histogram, 5.0),
+            ),
+            (
+                "tm99".to_string(),
+                BenchRunMetrics::truncated_mean(&histogram, 1.0),
+            ),
+            (
+                "tm99_9".to_string(),
+                BenchRunMetrics::truncated_mean(&histogram, 0.1),
+            ),
         ];
         for (label, value) in percentiles {
             PrometheusReporter::register_gauge(
@@ -299,7 +293,7 @@ mod test {
 
         let metrics = registry.gather();
 
-        assert_eq!(10, metrics.len());
+        assert_eq!(13, metrics.len());
         assert_eq!("latency", metrics[0].get_name());
         assert_eq!("Latency of requests", metrics[0].get_help());
         assert_eq!(MetricType::HISTOGRAM, metrics[0].get_field_type());
@@ -324,6 +318,9 @@ mod test {
             "latency_max",
             "latency_mean",
             "latency_stddev",
+            "latency_tm95",
+            "latency_tm99",
+            "latency_tm99_9",
         ];
 
         precalculated.sort();
