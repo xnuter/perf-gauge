@@ -30,8 +30,6 @@ pub struct BenchmarkConfig {
     pub verbose: bool,
     #[builder(default = "1")]
     pub concurrency: usize,
-    #[builder(default = "1000")]
-    pub noise_threshold: usize,
     pub rate_ladder: RateLadder,
     pub mode: BenchmarkMode,
     #[builder(default)]
@@ -55,7 +53,6 @@ impl BenchmarkConfig {
             (@arg RATE_STEP: --rate_step +takes_value "Rate increase step (until it reaches --rate_max).")
             (@arg RATE_MAX: --rate_max +takes_value "Max rate per second. Requires --rate-step")
             (@arg MAX_RATE_ITERATIONS: --max_iter -m +takes_value "The number of iterations with the max rate. By default `1`.")
-            (@arg NOISE_THRESHOLD: --noise_threshold +takes_value "Noise threshold (in standard deviations) - a positive integer. By default it's `6`, which means latency deviated more than 6 stddev from the mean are ignored")
             (@arg PROMETHEUS_ADDR: --prometheus +takes_value "If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g. 10.0.0.1:9091")
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
             (@subcommand http =>
@@ -78,7 +75,6 @@ impl BenchmarkConfig {
         let rate_per_second = matches.value_of("RATE");
         let rate_step = matches.value_of("RATE_STEP");
         let rate_max = matches.value_of("RATE_MAX");
-        let noise_threshold = matches.value_of("NOISE_THRESHOLD");
         let max_rate_iterations = matches.value_of("MAX_RATE_ITERATIONS").unwrap_or("1");
 
         let duration = matches.value_of("DURATION").map(|d| {
@@ -144,10 +140,6 @@ impl BenchmarkConfig {
             .name(test_case_name)
             .rate_ladder(rate_ladder)
             .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
-            .noise_threshold(parse_num(
-                noise_threshold.unwrap_or("1000"),
-                "Cannot parse NOISE_THRESHOLD",
-            ))
             .verbose(false)
             .mode(BenchmarkConfig::build_mode(&matches))
             .reporters(metrics_destinations)

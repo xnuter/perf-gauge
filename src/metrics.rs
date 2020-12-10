@@ -1,7 +1,7 @@
 use bytesize::ByteSize;
 use core::fmt;
 use histogram::Histogram;
-use log::info;
+use log::{error, info};
 use std::collections::HashMap;
 use std::ops::AddAssign;
 use std::time::{Duration, Instant};
@@ -78,43 +78,35 @@ impl BenchRunMetrics {
         self.summary.entry(stats.status).or_insert(0).add_assign(1);
     }
 
-    pub fn reduce_noise(&self, sigmas: usize) -> Self {
-        Self {
-            bench_begin: self.bench_begin,
-            total_bytes: self.total_bytes,
-            total_requests: self.total_requests,
-            successful_requests: self.successful_requests,
-            summary: self.summary.clone(),
-            success_latency: BenchRunMetrics::remove_noise(&self.success_latency, sigmas),
-            error_latency: self.error_latency.clone(),
-        }
-    }
-
-    fn remove_noise(histogram: &Histogram, sigmas: usize) -> Histogram {
-        let mean = histogram.mean().unwrap_or_default() as i64;
-        let stddev = histogram.stddev().unwrap_or_default() as i64;
-        let mut result = Histogram::new();
+    pub fn truncated_mean(histogram: &Histogram, threshold: f64) -> u64 {
+        let lowest = histogram.percentile(threshold).unwrap_or_default() as i64;
+        let highest = histogram.percentile(100. - threshold).unwrap_or_default() as i64;
         let mut ignored_count = 0;
-        let mut total_count = 0;
+        let mut count = 0;
+        let mut sum = 0_u64;
         for bucket in histogram.into_iter() {
-            total_count += bucket.count();
-            if bucket.count() > 0 && (bucket.value() as i64 - mean).abs() < stddev * sigmas as i64 {
-                for _ in 0..bucket.count() {
-                    result
-                        .increment(bucket.value())
-                        .expect("Histogram failure during noise reduction");
-                }
+            if bucket.value() as i64 >= lowest && bucket.value() as i64 <= highest {
+                count += bucket.count();
+                sum += bucket.value() * bucket.count();
             } else {
                 ignored_count += bucket.count();
             }
         }
-        info!(
-            "Noise reduction: ignored {} data points out of {}, the %={:.6}",
-            ignored_count,
-            total_count,
-            ignored_count as f64 * 100. / total_count as f64
-        );
-        result
+        if count > 0 {
+            let truncated_mean = sum / count;
+            info!(
+                "Truncated mean {:.3}: ignored {} data points out of {}, the %={:.6}. TM={}µs",
+                threshold,
+                ignored_count,
+                count + ignored_count,
+                ignored_count as f64 * 100. / count as f64,
+                truncated_mean
+            );
+            truncated_mean
+        } else {
+            error!("No data points");
+            0
+        }
     }
 }
 
@@ -169,6 +161,18 @@ impl BenchRunReport {
             ("Max".to_string(), latency.maximum().unwrap_or_default()),
             ("Mean".to_string(), latency.mean().unwrap_or_default()),
             ("StdDev".to_string(), latency.stddev().unwrap_or_default()),
+            (
+                "tm95".to_string(),
+                BenchRunMetrics::truncated_mean(&latency, 5.0),
+            ),
+            (
+                "tm99".to_string(),
+                BenchRunMetrics::truncated_mean(&latency, 1.0),
+            ),
+            (
+                "tm99.9".to_string(),
+                BenchRunMetrics::truncated_mean(&latency, 0.1),
+            ),
         ]
     }
 }
@@ -395,5 +399,8 @@ mod tests {
         assert!(as_str.contains("Max"));
         assert!(as_str.contains("Mean"));
         assert!(as_str.contains("StdDev"));
+        assert!(as_str.contains("tm95"));
+        assert!(as_str.contains("tm99"));
+        assert!(as_str.contains("tm99.9"));
     }
 }
