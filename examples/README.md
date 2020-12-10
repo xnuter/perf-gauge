@@ -9,6 +9,7 @@
   * [Summary](#summary)
 - [Tail latencies](#tail-latencies)
 - [Highest TPS](#highest-tps)
+- [No connection re-use](#no-connection-reuse)
 - [Conclusion](#conclusion)
 
 ## Methodology
