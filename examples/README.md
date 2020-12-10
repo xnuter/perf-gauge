@@ -332,7 +332,8 @@ And the same for the tail latencies:
 ## No-connection reuse
 
 The difference in the tail latency might be partially explained by more expensive connection establishment.
-Let's run benchmarks without connection reuse (just removing the `--conn_reuse` parameter).
+Let's run benchmarks without connection reuse (just removing the `--conn_reuse` parameter and changing the max rate to `3,5k TPS`,
+which can be handled by all three services).
 
 ![](./prom/comare-all-no-connection-reuse.png)
 
