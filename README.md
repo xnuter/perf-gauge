@@ -1,7 +1,7 @@
 [![Crate](https://img.shields.io/crates/v/perf-gauge.svg)](https://crates.io/crates/perf-gauge)
 ![Clippy/Fmt](https://github.com/xnuter/perf-gauge/workflows/Clippy/Fmt/badge.svg)
 ![Tests](https://github.com/xnuter/perf-gauge/workflows/Tests/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/xnuter/perf-gauge/badge.svg?branch=master)](https://coveralls.io/github/xnuter/perf-gauge?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/xnuter/perf-gauge/badge.svg?branch=main)](https://coveralls.io/github/xnuter/perf-gauge?branch=main)
 
 Overview
 ========
