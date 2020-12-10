@@ -16,7 +16,7 @@
 Using an 8-cores instance with the following CPU-sets to isolate components, but at the same time to avoid rule out network delays/noise:
 
 * Cores 0-1: Nginx (serves `10kb` of payload per request)
-* Cores 2-3: HTTP proxy (either HTTP Tunnel or Chisel)
+* Cores 2-3: HTTP proxy (either HTTP Tunnel or Tcp-Proxy)
 * Cores 4-7: [perf-gauge](https://github.com/xnuter/perf-gauge) - the generator of load.
 
 ### Nginx configuration
@@ -251,7 +251,7 @@ However, at for the `p99` while the Rust based proxy adds `~330µs` the Golang b
 |---|---|---|---|
 | Baseline Nginx  |  201µs | 315µs | 500µs  |
 | Http-Tunnel (Rust) |  283µs | 463µs | 831µs |
-| Chisel (Golang) | 289µs  | 468µs | 1160µs  |
+| Tcp-Proxy (Golang) | 289µs  | 468µs | 1160µs  |
 
 Side by side with http-tunnel (Http-Tunnel-Rust is on the left, Tcp-Proxy-Golang is on the right):
 ![](./prom/compare-all-latency-moderate-tps.png)
@@ -288,7 +288,7 @@ As the `p99.99` is oscillating and quite high:
 |---|---|---|---|
 | Baseline Nginx  |  500µs | 775µs | 1,170µs  |
 | Http-Tunnel (Rust) |  831µs | 1,320µs | 2,320µs |
-| Chisel (Golang) | 1,160µs  | 4,220µs | 17,460µs  | 
+| Tcp-Proxy (Golang) | 1,160µs  | 4,220µs | 17,460µs  | 
 
 Or, comparing `p99.9` and `p99.99` side by side (`nginx baseline`, `http-tunnel-rust`, `tcp-proxy-golang`):
 
@@ -328,6 +328,23 @@ The `p99` latency surplus is the largest for the `tcp-proxy-golang`:
 And the same for the tail latencies:
 
 ![](./prom/compare-all-tail-latency-highest-tps.png)
+
+## No-connection reuse
+
+The difference in the tail latency might be partially explained by more expensive connection establishment.
+Let's run benchmarks without connection reuse (just removing the `--conn_reuse` parameter).
+
+![](./prom/comare-all-no-connection-reuse.png)
+
+As we can see, indeed the difference became more prominent:
+
+| | p50  | p90  | p99 | tm99 |
+|---|---|---|---|---|
+| Baseline Nginx  |  921µs | 1,385µs | 1,938µs | 959µs |
+| Http-Tunnel (Rust) |  1,920µs | 2,589µs | 3,845µs | 1,977µs |
+| Tcp-Proxy (Golang) | 2,280µs  | 4,244µs | 6,642µs  | 2,543µs |
+
+(*) `tm99` - `truncated mean 99` - the mean value of all values, without the top and the bottom `1%`. 
 
 ## Conclusion
 
