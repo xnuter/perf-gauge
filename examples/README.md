@@ -340,11 +340,11 @@ which can be handled by all three services).
 
 As we can see, indeed the difference became more prominent:
 
-| | p50  | p90  | p99 | tm99 |
-|---|---|---|---|---|
-| Baseline Nginx  |  921µs | 1,385µs | 1,938µs | 959µs |
-| Http-Tunnel (Rust) |  1,920µs | 2,589µs | 3,845µs | 1,977µs |
-| Tcp-Proxy (Golang) | 2,280µs  | 4,244µs | 6,642µs  | 2,543µs |
+| | p50  | p90  | p99 |  p99.9 |  p99.99 | tm99 |
+|---|---|---|---|---|---|---|
+| Baseline Nginx  |  921µs | 1,385µs | 1,938µs | 2,548µs | 3,673µs | 959µs |
+| Http-Tunnel (Rust) |  1,920µs | 2,589µs | 3,845µs | 4,811µs | 7,485µs | 1,977µs |
+| Tcp-Proxy (Golang) | 2,280µs  | 4,244µs | 6,642µs  | 10,879µs | 13,230µs | 2,543µs |
 
 (*) `tm99` - `truncated mean 99` - the mean value of all values, without the top and the bottom `1%`. 
 
