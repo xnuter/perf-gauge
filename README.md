@@ -30,7 +30,7 @@ Emitted metrics are:
 * `latency` - latency histogram across all requests
 * `latency_{statistic}` - `{statistic} = {min, mean, max, stddev, p50, p90, p99, p99_9, p99_99}` - gauges for latency statistics
 
-You can [read more here](https://github.com/xnuter/http-tunnel/wiki/Benchmarking-the-HTTP-Tunnel-vs-Chisel-(Golang)).
+You can [read more here](./examples).
 
 Usage
 ======
@@ -65,26 +65,22 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --concurrency <CONCURRENCY>            Concurrent clients. Default `1`.
-    -d, --duration <DURATION>                  Duration of the test.
+    -c, --concurrency <CONCURRENCY>          Concurrent clients. Default `1`.
+    -d, --duration <DURATION>                Duration of the test.
     -m, --max_iter <MAX_RATE_ITERATIONS>
-            The number of iterations with the max rate. By default `1`. Requires --rate-step
+            The number of iterations with the max rate. By default `1`.
 
-        --noise_threshold <NOISE_THRESHOLD>
-            Noise threshold (in standard deviations) - a positive integer. By default it's `6`,
-            which means latency deviated more than 6 stddev from the mean are ignored
-
-    -n, --num_req <NUMBER_OF_REQUESTS>         Number of requests.
+    -n, --num_req <NUMBER_OF_REQUESTS>       Number of requests.
         --prometheus <PROMETHEUS_ADDR>
             If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g.
             10.0.0.1:9091
 
-        --prometheus_job <PROMETHEUS_JOB>      Prometheus Job (by default `pushgateway`)
+        --prometheus_job <PROMETHEUS_JOB>    Prometheus Job (by default `pushgateway`)
     -r, --rate <RATE>
             Request rate per second. E.g. 100 or 0.1. By default no limit.
 
-        --rate_max <RATE_MAX>                  Max rate per second.
-        --rate_step <RATE_STEP>                Rate increase step (until it reaches --rate_max).
+        --rate_max <RATE_MAX>                Max rate per second. Requires --rate-step
+        --rate_step <RATE_STEP>              Rate increase step (until it reaches --rate_max).
     -N, --name <TEST_CASE_NAME>
             Test case name. Optional. Can be used for tagging metrics.
 
@@ -125,28 +121,16 @@ OPTIONS:
 For example, test an endpoint using a single run, 5 seconds (max possible request rate):
 
 ```
-$ perf-gauge -c 4 -d 5s \
-              http https://my-local-nginx.org/10kb --ignore_cert --conn_reuse
-Duration 5.005778798s 
-Requests: 99565 
-Request rate: 19890.012 per second
-Total bytes: 995.6 MB 
-Bitrate: 1591.201 Mbps
-
-Summary:
-200 OK: 99565
-
-Latency:
-Min    :   137µs
-p50    :   191µs
-p90    :   243µs
-p99    :   353µs
-p99.9  :   546µs
-p99.99 :  1769µs
-Max    : 15655µs
-Avg    :   201µs
-StdDev :   110µs
+$ perf-gauge --concurrency 10 \
+               --duration 10s \
+               http http://localhost/10kb --conn_reuse
 ```
+  
+Parameters:
+
+* `--concurrency 10` - the number of clients generating load concurrently
+* `--duration 60s` - step duration `60s`
+* `http http://local-nginx.org/10kb --conn_reuse` - run in `http` mode to the given endpoint, reusing connections. 
 
 Reporting performance metrics to Prometheus
 ===========================================
@@ -156,28 +140,21 @@ Another use case, is to increase request rate and see how the latency degrades.
 E.g. increase RPS each minute by 1,000: 
 
 ```
-perf-gauge -c 2 --rate 1000 --rate_step 1000 --rate_max 20000 \
-      -d 60s  \
-      -N http-tunnel
-      --prometheus localhost:9091 \
-      http https://my-local-nginx.org/10kb \
-      --conn_reuse --ignore_cert \
-      --tunnel http://localhost:8080
+export PROMETHEUS_HOST=10.138.0.2
 
+$ perf-gauge --concurrency 10 \
+               --rate 1000 --rate_step 1000 --rate_max 25000 \
+               --max_iter 15 \
+               --duration 60s \
+               --name nginx-direct \
+               --prometheus $PROMETHEUS_HOST:9091 \
+               http https://localhost/10kb --conn_reuse --ignore_cert
 ```
 
-For example, running the same test in parallel to compare different use-cases:
-
-```bash
-#!/usr/bin/env bash
-
-perf-gauge -c 1 --rate 1 --rate_step 1000 --rate_max 5000 \
-    -m 5 -d 60s -N http-tunnel --prometheus localhost:9091 \
-    http https://my-local-nginx.xnuter.org/10kb \
-    --conn_reuse --ignore_cert --tunnel http://localhost:8080 &
-    
-perf-gauge -c 1 --rate 1 --rate_step 1000 --rate_max 5000 \
-    -m 5 -d 60s -N nginx-direct --prometheus localhost:9091 \
-    http https://my-local-nginx.xnuter.org/10kb --conn_reuse --ignore_cert &
-
-```
+* `--concurrency 10` - the number of clients generating load concurrently
+* `--rate 1000 --rate_step 1000 --rate_max 25000` - start with rate 1000 rps, then add 1000 rps after each step until it reaches 25k.
+* `--duration 60s` - step duration `60s`
+* `--max_iter 15` - perform `15` iterations at the max rate
+* `--name nginx-direct` - the name of the test (used for reporting metrics to `prometheus`)
+* `--prometheus $PROMETHEUS_HOST:9091` - push-gateway `host:port` to send metrics to Prometheus.
+* `http http://local-nginx.org/10kb --conn_reuse` - run in `https` mode to the given endpoint, reusing connections and not checking the certificate. 
