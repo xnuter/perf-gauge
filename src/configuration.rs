@@ -63,7 +63,7 @@ impl BenchmarkConfig {
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
                 (@arg STORE_COOKIES: --store_cookies "If cookies should be stored")
                 (@arg HTTP2_ONLY: --http2_only "Enforce HTTP/2 only")
-                (@arg TARGET: +required "Target, e.g. https://my-service.com:8443/8kb")
+                (@arg TARGET: +required ... "Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with random choice balancing)")
                 (@arg METHOD: --method -M +takes_value "Method. By default GET")
                 (@arg HEADER: --header -H ... "Headers in \"Name:Value\" form. Can be provided multiple times.")
                 (@arg BODY: --body -B  +takes_value "Body of the request in base64. Optional.")
@@ -152,9 +152,10 @@ impl BenchmarkConfig {
             let http_config = HttpBenchAdapterBuilder::default()
                 .url(
                     config
-                        .value_of("TARGET")
+                        .values_of("TARGET")
                         .expect("misconfiguration for TARGET")
-                        .to_string(),
+                        .map(|s| s.to_string())
+                        .collect(),
                 )
                 .tunnel(config.value_of("TUNNEL").map(|s| s.to_string()))
                 .ignore_cert(config.is_present("IGNORE_CERT"))

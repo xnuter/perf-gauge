@@ -9,6 +9,7 @@ use crate::bench_run::BenchmarkProtocolAdapter;
 use crate::metrics::{RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
 use log::error;
+use rand::{thread_rng, Rng};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Method, Proxy, Request};
 use std::str::FromStr;
@@ -17,7 +18,7 @@ use std::time::{Duration, Instant};
 #[derive(Builder, Deserialize, Clone, Debug)]
 #[builder(build_fn(validate = "Self::validate"))]
 pub struct HttpBenchAdapter {
-    url: String,
+    url: Vec<String>,
     #[builder(default)]
     tunnel: Option<String>,
     #[builder(default)]
@@ -107,7 +108,10 @@ impl HttpBenchAdapter {
         let method =
             Method::from_str(&self.method.clone()).expect("Method must be valid at this point");
 
-        let mut request_builder = client.request(method, &self.url.clone());
+        let mut request_builder = client.request(
+            method,
+            &self.url[thread_rng().gen_range(0..self.url.len())].clone(),
+        );
 
         if !self.headers.is_empty() {
             let mut headers = HeaderMap::new();
@@ -166,7 +170,7 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
-            .url(format!("{}/1", url))
+            .url(vec![format!("{}/1", url)])
             .build()
             .unwrap();
 
@@ -194,7 +198,7 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
-            .url(format!("{}/1", url))
+            .url(vec![format!("{}/1", url)])
             .method("PUT".to_string())
             .headers(vec![
                 ("x-header".to_string(), "value1".to_string()),
@@ -225,7 +229,7 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
-            .url(format!("{}/1", url))
+            .url(vec![format!("{}/1", url)])
             .build()
             .unwrap();
 
@@ -250,7 +254,7 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench: HttpBenchAdapter = HttpBenchAdapterBuilder::default()
-            .url(format!("{}/1", url))
+            .url(vec![format!("{}/1", url)])
             .http2_only(true)
             .build()
             .unwrap();

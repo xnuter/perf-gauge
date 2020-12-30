@@ -98,10 +98,11 @@ $ perf-gauge help http
 Run in HTTP(S) mode
 
 USAGE:
-    perf-gauge http [FLAGS] [OPTIONS] <TARGET>
+    perf-gauge http [FLAGS] [OPTIONS] <TARGET>...
 
 ARGS:
-    <TARGET>    Target, e.g. https://my-service.com:8443/8kb
+    <TARGET>...    Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with
+                   random choice balancing)
 
 FLAGS:
         --conn_reuse       If connections should be re-used

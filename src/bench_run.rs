@@ -135,7 +135,7 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_adapter = HttpBenchAdapterBuilder::default()
-            .url(format!("{}/1", url))
+            .url(vec![format!("{}/1", url)])
             .build()
             .unwrap();
 
