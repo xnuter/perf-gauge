@@ -1,49 +1,109 @@
 - [Methodology](#methodology)
-  * [Nginx configuration](#nginx-configuration)
-  * [Setting up cpu-sets](#setting-up-cpu-sets)
+  * [Types of load](#types-of-load)
+  * [Compared metrics](#compared-metrics)
+    + [Trimmed mean vs median](#trimmed-mean-vs-median)
+  * [Compared configurations](#compared-configurations)
+- [Testbed](#testbed)
   * [Prometheus](#prometheus)
-- [Moderate TPS](#moderate-tps)
-  * [Baseline](#baseline)
-  * [HTTP Tunnel benchmark (in TCP mode)](#http-tunnel-benchmark--in-tcp-mode-)
-  * [Tcp-proxy (Golang)](#tcp-proxy--golang-)
-  * [Summary](#summary)
-- [Tail latencies](#tail-latencies)
-- [Highest TPS](#highest-tps)
-- [No connection re-use](#no-connection-reuse)
-- [Conclusion](#conclusion)
+  * [Configurations](#configurations)
+- [Benchmarks](#benchmarks)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
 ## Methodology
 
-Using an 8-cores instance with the following CPU-sets to isolate components, but at the same time to avoid rule out network delays/noise:
+TL;DR; you can jump right to [Benchmarks](#benchmarks) and look into methodology later.
+
+### Types of load
+
+There are three types of load to compare different aspects TCP proxies:
+
+* `moderate load` - `25k RPS` (requests per second). Connections are being re-used for `50` requests.
+  * In this mode we benchmark handling traffic over persisted connections.
+  * Moderate request rate is chosen to benchmark proxies under _normal_ conditions. 
+* `max load` - sending as many requests as the server can handle.
+  * The intent is to test the proxies under stress conditions.
+  * Also, we find the max throughput of the service (the saturation point).
+* `no-keepalive` - using each connection for a single request 
+  * So we can compare the performance characteristics of establishing new connections.
+  * Establishing a connection is an expensive operation.
+  * It involves resource allocation and dispatching tasks between worker threads.
+  * As well as clean-up operations once a connection is closed. 
+  
+### Compared metrics
+
+To compare different solutions, we use the following set of metrics:
+
+* Latency (in microseconds, or `µs`)
+  * `p50` (median) - a value that is greater than 50% of observed latency samples
+  * `p90` - 90th percentile, or a value that is better than 9 out 10 latency samples. Usually a good proxy for a perceivable latency by humans.
+  * `p99` - 99th percentile, the threshold for the worst 1% of samples.
+  * tail-latencies: `p99.9` and `p99.99` - may be important for systems with multiple network hops or large fan-outs (e.g. a request gathers data from tens or hundreds microservices)
+  * `max` - the worst-case. 
+  * `tm99.9` - trimmed mean, or the mean value of all samples without the best and worst 0.1%. It is more useful than the traditional mean, as it removes a potentially disproportionate influence of outliers: https://en.wikipedia.org/wiki/Truncated_mean
+  * `stddev` - the standard deviation of the latency. The lower the better: https://en.wikipedia.org/wiki/Standard_deviation
+* Throughput `rps` (requests per second) 
+* CPU utilization
+* Memory utilization
+
+In other words, we primarily focus on the latency, but also keep an eye on the cost of that latency in terms of CPU/Memory.
+For the `max load` we also assess the maximum possible throughput of the system.
+
+#### Trimmed mean vs median
+
+Why do we need to observe trimmed mean if we already have median (i.e. `p50`)?
+`p50` (or percentiles in general) may not necessarily capture performance regressions. For instance:
+
+* `1,2,3,4,5,6,7,8,9,10` - `p50` is `5`, `trimmed mean` is `5`
+* `5,5,5,5,5,6,7,8,9,10` - `p50` is still `5`, however the `trimmed mean` is `6.25`.
+
+The same is applicable to any other percentile. If the team only uses `p90` or `p99` to monitor the performance of their system, they may miss dramatic regressions without being aware of that.
+
+Of course, we may use multiple `fences` (`p10`, `p25`, etc.) - but why, if we can use a single metric?
+In contrast, the traditional mean is susceptible to noise and outliers and not as good for capturing the general tendency. 
+
+### Compared configurations
+
+These benchmarks compare TCP proxies written in different languages, which use Non-blocking I/O.
+Why TCP proxies? This is the simplest application dealing with the network I/O. All it does, is connection establishment and forwarding traffic.
+
+Let's say, you're building a network service. TCP proxy benchmarks are the lower boundary for the request latency it may have.
+Everything else is added on top of that (e.g. parsing, validating, packing, traversing, construction of data, etc.).
+
+So the following solutions are being compared:
+
+* Baseline (`perf-gauge <-> nginx`) - direct communication to Nginx to establish the baseline: https://nginx.org/en/
+* HAProxy (`perf-gauge <-> HAProxy <-> nginx`) - HAProxy in TCP-proxy mode. To compare to a mature solution written in `C`: http://www.haproxy.org/
+* `draft-http-tunnel` - a simple C++ solution with very basic functionality (asio) (running in TCP mode): https://github.com/cmello/draft-http-tunnel/
+* `http-tunnel` - a simple HTTPTunnel written in Rust (tokio) (running in TCP mode): https://github.com/xnuter/http-tunnel/
+* `tcp-proxy` - a Golang solution: https://github.com/ickerwx/tcpproxy/
+* `NetCrusher` - a Java solution (Java NIO): https://github.com/NetCrusherOrg/NetCrusher-java/
+* `pproxy` - a Python solution based on `asyncio` (running in TCP Proxy mode): https://pypi.org/project/pproxy/
+
+## Testbed
+
+Benchmarking network services is tricky, especially if we need to measure difference down to microseconds granularity.
+To rule out network delays/noise we can try to employ one of the options:
+
+* use co-located servers, e.g. VMs on the same physical machine, or in the same rack.
+* use a single VM, but assign CPU cores to different components to avoid overlap 
+
+Both are not ideal, but the latter seem to be an easier way. We just need to make sure, that the instance type is CPU optimized,
+and it won't suffer from noisy-neighbor issues. In other words, it must have exclusive access to all cores as we're going to drive CPU utilization close to 100%.
+
+E.g. if we use an 8-core machine, we can use the following assignment scheme:
 
 * Cores 0-1: Nginx (serves `10kb` of payload per request)
-* Cores 2-3: HTTP proxy (either HTTP Tunnel or Tcp-Proxy)
-* Cores 4-7: [perf-gauge](https://github.com/xnuter/perf-gauge) - the generator of load.
+* Cores 2-3: TCP proxy
+* Cores 4-7: [perf-gauge](https://github.com/xnuter/perf-gauge) - the load-generator.
 
-### Nginx configuration
+This can be achieved by using [cpu sets](https://codywu2010.wordpress.com/2015/09/27/cpuset-by-example/):
 
-```
-worker_processes 2;
-worker_cpu_affinity 00000001 00000010;
-keepalive_requests 50;
-```
-
-Please note the `keepalive_requests` setting. We force reconnection every 50 requests, so `p99` would capture the connection establishment latency.
-So each connection will serve `500kb` of data (`50 req * 10kb payload`).
-
-### Setting up cpu-sets
-
-Install the Linux package:
 ```
 apt-get install cgroup-tools
 ```
 
-Then create a CPU set for the benchmarking tool:
-```
-sudo cgcreate -t $USER:$USER -a $USER:$USER  -g cpuset:perfgauge
-echo 4-7 > /sys/fs/cgroup/cpuset/perfgauge/cpuset.cpus
-echo 0 > /sys/fs/cgroup/cpuset/perfgauge/cpuset.mems
-```
+Then we can create non-overlapping cpu-sets and run different components without competing for CPU and ruling out any network noise.
 
 ### Prometheus
 
@@ -56,299 +116,29 @@ Then set the variable with the host, for instance:
 export PROMETHEUS_HOST=10.138.0.2
 ```
 
-## Moderate TPS
+### Configurations
 
-For starters, let's benchmark `http-tunnel-rust` and `tcp-proxy-golang` under moderate load. Starting from `1000 RPS` going all the way up to `25,000 RPS`,
-adding `1000 RPS` every minute.  
+Please note, that for all configuration we disable logging to minimize the number of variables, and the level of noise.
 
-### Baseline 
+* [Perf-gauge](./perf-gauge-setup.md)
+* [Nginx](nginx-config.md)
+* TCP Proxies  
+  * [HAProxy - C](haproxy-config.md)
+  * [draft-http-tunnel - C++](cpp-config.md)
+  * [http-tunnel - Rust](rust-config.md)
+  * [tcp-roxy - Golang](golang-config.md)
+  * [NetCrusher - Java](java-config.md)
+  * [pproxy - Python](python-config.md)
 
-First of all, let's see how much load can be generated directly to `nginx` and what the latency numbers are.
+## Benchmarks
 
-```
-cgexec -g cpuset:perfgauge --sticky \
-        perf-gauge \
-             --concurrency 10 \
-             --rate 1000 --rate_step 1000 --rate_max 25000 \
-             --max_iter 15 \
-             --duration 60s \
-             --name nginx-direct \
-             --prometheus $PROMETHEUS_HOST:9091 \
-             http http://localhost/10kb --conn_reuse
-```
+Okay, we finally got to benchmark results. All benchmark results are split to two batches:
 
-Let me explain the parameters:
+* Baseline, C, C++, Rust - comparing high-performance solutions
+* Rust, Golang, Java, Python - comparing memory-safe languages
 
-* `--concurrency 10` - the number of clients generating load concurrently
-* `--rate 1000 --rate_step 1000 --rate_max 25000` - start with rate 1000 rps, then add 1000 rps after each step until it reaches 25k.
-* `--duration 60s` - step duration `60s`
-* `--max_iter 15` - perform `15` iterations at the max rate
-* `--name nginx-direct` - the name of the test (used for reporting metrics to `prometheus`)
-* `--prometheus $PROMETHEUS_HOST:9091` - push-gateway `host:port` to send metrics to Prometheus.
-* `http http://local-nginx.org/10kb --conn_reuse` - run in `http` mode to the given endpoint, reusing connections. 
+Yep, Rust belongs to both worlds. 
 
-Please note that we do not benchmark `https` as we're benchmarking TCP proxies, and using `https` would only add noise. 
-
-Which prints something like this:
-
-```
-Test: nginx-direct
-Duration 60.020547823s
-Requests: 1499937
-Request rate: 24990.392 per second
-Success rate: 100.000%
-Total bytes: 15.0 GB
-Bitrate: 1999.231 Mbps
-
-Summary:
-200 OK: 1499937
-
-Latency:
-Min    :   54µs
-p50    :  187µs
-p90    :  290µs
-p99    :  465µs
-p99.9  :  752µs
-p99.99 :  996µs
-Max    : 2284µs
-Mean   :  201µs
-StdDev :   78µs
-```
-
-In Grafana, we can see that the latency is stable for low and high TPS:
-
-![](./prom/nginx-baseline-latency.png)
-
-Let me briefly explain the graph:
-
-* RPS (on the right) goes up from 1000 rps to ~25k
-* On the left, you can see how `p50`, `p90`, and `p99` change with the request rate.
-
-Okay, let's now see how placing a proxy between `perf-gauge` and `nginx` would affect latency and throughput.
-
-We can see here that the latencies are stable and don't change with the load much.
-We can see that the highest `p99` is the first minute, which can be explained by the client initialization stage (creating a connection pool).
-   
-### HTTP Tunnel benchmark (in TCP mode)
-
-Let's launch the [http-tunnel](https://github.com/xnuter/http-tunnel) (using only cores #2 and #3) in the `tcp` mode proxying traffic to `nginx`:
-
-```
-sudo cgcreate -t $USER:$USER -a $USER:$USER  -g cpuset:httptunnel
-echo 2-3 > /sys/fs/cgroup/cpuset/httptunnel/cpuset.cpus
-echo 0 > /sys/fs/cgroup/cpuset/httptunnel/cpuset.mems
-
-cgexec -g cpuset:httptunnel --sticky http-tunnel --bind 0.0.0.0:8080 tcp --destination localhost:80
-```
-
-Let's benchmark it with `perf-gauge`:
-
-```
-cgexec -g cpuset:perfgauge --sticky \
-        perf-gauge \
-             --concurrency 10 \
-             --rate 1000 --rate_step 1000 --rate_max 25000 \
-             --max_iter 15 \
-             --duration 60s \
-             --name http-tunnel-rust \
-             --prometheus $PROMETHEUS_HOST:9091 \
-             http http://localhost:8080/10kb --conn_reuse
-```
-The console output would be something like this:
-```
-Test: http-tunnel-rust
-Duration 60.022563686s
-Requests: 1499890
-Request rate: 24988.769 per second
-Success rate: 100.000%
-Total bytes: 15.0 GB
-Bitrate: 1999.102 Mbps
-
-Summary:
-200 OK: 1499890
-
-Latency:
-Min    :  106µs
-p50    :  263µs
-p90    :  448µs
-p99    :  800µs
-p99.9  : 1229µs
-p99.99 : 1723µs
-Max    : 7898µs
-Mean   :  301µs
-StdDev :  130µs
-```
-
-We can see it added several tens of microseconds on top of the baseline latency:
-
-![](./prom/http-tunnel-rust-latency.png)
-
-Or, comparing both side by side (Nginx is on the left, Http-Tunnel is on the right):
-
-![](./prom/nginx-vs-http-tunnel-rust-latency.png)
-
-### Tcp-proxy (Golang)
-
-Let's compare the performance with [tcp-proxy](https://github.com/jpillora/go-tcp-proxy) written in Golang:  
-
-```
-sudo cgcreate -t $USER:$USER -a $USER:$USER  -g cpuset:tcpproxy
-echo 2-3 > /sys/fs/cgroup/cpuset/tcpproxy/cpuset.cpus
-echo 0 > /sys/fs/cgroup/cpuset/tcpproxy/cpuset.mems
-
-cgexec -g cpuset:tcpproxy --sticky ./tcp-proxy -l localhost:8111 -r localhost:80 > /dev/null
-```
-```
-cgexec -g cpuset:perfgauge --sticky \
-        perf-gauge \
-             --concurrency 10 \
-             --rate 1000 --rate_step 1000 --rate_max 25000 \
-             --max_iter 15 \
-             --duration 60s \
-             --name tcp-proxy-golang \
-             --prometheus $PROMETHEUS_HOST:9091 \
-             http http://localhost:8111/10kb --conn_reuse
-```
-The console output would be something like this:
-
-```
-Test: tcp-proxy-golang
-Duration 60.020734565s
-Requests: 1499900
-Request rate: 24989.697 per second
-Success rate: 100.000%
-Total bytes: 15.0 GB
-Bitrate: 1999.176 Mbps
-
-Summary:
-200 OK: 1499900
-
-Latency:
-Min    :    98µs
-p50    :   272µs
-p90    :   449µs
-p99    :  1221µs
-p99.9  :  3513µs
-p99.99 :  5764µs
-Max    : 35881µs
-Mean   :   322µs
-StdDev :   295µs
-```
-
-It seems that `p99` went up tangibly:
-
-![](./prom/tcp-proxy-golang-latency.png)
-
-Or, comparing side by side with http-tunnel (Http-Tunnel-Rust is on the left, Tcp-Proxy-Golang is on the right):
-
-![](./prom/http-tunnel-rust-vs-tcp-proxy-golang-latency.png)
-
-### Summary
-
-Both Http-Tunnel (Rust) and Tcp-Proxy (Golang) add about `80µs` to the `p50` and `~150µs` to the `p90`.
-However, at for the `p99` while the Rust based proxy adds `~330µs` the Golang based one adds `~650µs`:
-
-| | p50  | p90  | p99 | 
-|---|---|---|---|
-| Baseline Nginx  |  201µs | 315µs | 500µs  |
-| Http-Tunnel (Rust) |  283µs | 463µs | 831µs |
-| Tcp-Proxy (Golang) | 289µs  | 468µs | 1160µs  |
-
-Side by side with http-tunnel (Http-Tunnel-Rust is on the left, Tcp-Proxy-Golang is on the right):
-![](./prom/compare-all-latency-moderate-tps.png)
-
-Let's look at the tail latencies deeper. 
-
-## Tail latencies
-
-Tail latencies we're going to compare are `p99`, 'p99.9' and 'p99.99'.
-Which are the lower boundaries for the worst `1%`, `0.1%` and `0.01%` respectively.
-
-Let's first take a look at the Nginx baseline:
-
-![](./prom/nginx-baseline-tail-latency.png)
-
-As we can see the first minute `p99.99` is about `6ms`, but it includes connection pool initialization.
-After that all three are quite stable and low. At least it means that both the server and the benchmarking client have very predictable performance. 
-That's good!
-
-What about `http-tunnel (Rust)`?
-
-![](./prom/http-tunnel-rust-tail-latency.png)
-
-Now the pool initialization yielded `18ms` but after that the latency overhead on top of Nginx was quite manageable and stable too.
-
-It's time to compare it to `tcp-proxy (Golang)`
-
-![](./prom/tcp-proxy-golang-tail-latency.png)    
-
-Well, it's a bit different picture. While `p99` and `p99.9` are also stable, but they have a tangible latency surplus.
-As the `p99.99` is oscillating and quite high:
-
-| | p99  | p99.9  | p99.99 | 
-|---|---|---|---|
-| Baseline Nginx  |  500µs | 775µs | 1,170µs  |
-| Http-Tunnel (Rust) |  831µs | 1,320µs | 2,320µs |
-| Tcp-Proxy (Golang) | 1,160µs  | 4,220µs | 17,460µs  | 
-
-Or, comparing `p99.9` and `p99.99` side by side (`nginx baseline`, `http-tunnel-rust`, `tcp-proxy-golang`):
-
-![](./prom/compare-all-tail-latency-moderate-tps.png)
-
-## Highest TPS
-
-Okay, let's know evaluate service's bandwidth. For that we can run the following command:
-
-```
-cgexec -g cpuset:perfgauge --sticky \
-        perf-gauge \
-             --concurrency 100 \
-             --max_iter 15 \
-             --duration 60s \
-             --name nginx-direct \
-             --prometheus $PROMETHEUS_HOST:9091 \
-             http http://localhost/10kb --conn_reuse
-```
-
-What's the difference with the command above? 
-
-* `--concurrency 100` - we created `100` concurrent clients to open more connections
-* no `rate` parameters, which is interpreted as "send as many requests as possible"
-
-So it will send as many requests as possible until the backend saturates.
-
-First, let's compare throughput. Baseline Nginx goes up to `60k RPS` (`4.8 Gbps`) (not bad just for 2 cores),
-`http-tunnel-rust` stops at `43k RPS` (`3.44 Gbps`), `tcp-proxy-golang` reached `38k RPS` (`30.4 Gbps`): 
-
-![](./prom/compare-all-throughput-highest-tps.png)
-
-The `p99` latency surplus is the largest for the `tcp-proxy-golang`:
-
-![](./prom/compare-all-p99-highest-tps.png)
-
-And the same for the tail latencies:
-
-![](./prom/compare-all-tail-latency-highest-tps.png)
-
-## No-connection reuse
-
-The difference in the tail latency might be partially explained by more expensive connection establishment.
-Let's run benchmarks without connection reuse (just removing the `--conn_reuse` parameter and changing the max rate to `3,5k TPS`,
-which can be handled by all three services).
-
-![](./prom/comare-all-no-connection-reuse.png)
-
-As we can see, indeed the difference became more prominent:
-
-| | p50  | p90  | p99 |  p99.9 |  p99.99 | tm99 |
-|---|---|---|---|---|---|---|
-| Baseline Nginx  |  921µs | 1,385µs | 1,938µs | 2,548µs | 3,673µs | 959µs |
-| Http-Tunnel (Rust) |  1,920µs | 2,589µs | 3,845µs | 4,811µs | 7,485µs | 1,977µs |
-| Tcp-Proxy (Golang) | 2,280µs  | 4,244µs | 6,642µs  | 10,879µs | 13,230µs | 2,543µs |
-
-(*) `tm99` - `truncated mean 99` - the mean value of all values, without the top and the bottom `1%`. 
-
-## Conclusion
-
-While Rust-based and Golang-based proxies are comparable at `p50` and `p90` level for moderate TPS,
-the Rust-based one has better tail latencies, especially under stress.  
+* [Moderate RPS](./moderate-tps.md)
+* [Max RPS](./max-tps.md)
+* [No keep-alive](./no-keepalive.md)
