@@ -12,6 +12,8 @@
 
 ## Methodology
 
+TL;DR; you can jump right to [Benchmarks](#benchmarks) and look into methodology later.
+
 ### Types of load
 
 There are three types of load to compare different aspects TCP proxies:

@@ -5,7 +5,7 @@
         + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999-)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
         + [CPU consumption](#cpu-consumption)
-            - [Summary](#summary)
+        + [Summary](#summary)
     * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages--rust--golang--java--python-)
         + [Maximum rate achieved](#maximum-rate-achieved-1)
         + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99--1)
@@ -75,7 +75,7 @@ Which means that C++ managed to use more CPU and spent more time handling reques
 However, it's worth mentioning that the `draft-http-tunnel` is implemented using callbacks, while the Rust solution is based on `tokio`,
 which is a feature-rich framework and is much more flexible and extendable.
 
-###### Summary
+##### Summary
 
 | | p50  | p90  | p99 |  p99.9 |  p99.99 | max | tm99 | stddev | rps (k) |
 |---|---|---|---|---|---|---|---|---|---|

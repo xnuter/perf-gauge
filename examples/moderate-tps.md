@@ -4,7 +4,7 @@
         + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999-)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
         + [CPU and Memory consumption](#cpu-and-memory-consumption)
-            - [Summary](#summary)
+        + [Summary](#summary)
     * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages--rust--golang--java--python-)
         + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99--1)
         + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999--1)
@@ -53,7 +53,7 @@ However, the difference is really negligible and on order of 0.1% of the total m
 
 ![](./prom/baseline-c-cpp-rust-memory.png)
 
-###### Summary
+##### Summary
 
 | | p50  | p90  | p99 |  p99.9 |  p99.99 | max | tm99 | stddev |
 |---|---|---|---|---|---|---|---|---|

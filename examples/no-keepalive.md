@@ -4,7 +4,7 @@
         + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999-)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
         + [CPU](#cpu)
-            - [Summary](#summary)
+        + [Summary](#summary)
     * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages--rust--golang--java--python-)
         + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99--1)
         + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999--1)
@@ -48,7 +48,7 @@ HAProxy is again better than both C++/Rust (which are roughly equal here):
 
 ![](./prom/no-keepalive-baseline-c-cpp-rust-cpu.png)
 
-###### Summary
+##### Summary
 
 | | p50  | p90  | p99 |  p99.9 |  p99.99 | max | tm99 | stddev |
 |---|---|---|---|---|---|---|---|---|
