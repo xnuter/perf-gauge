@@ -1,3 +1,15 @@
+- [Methodology](#methodology)
+  * [Types of load](#types-of-load)
+  * [Compared metrics](#compared-metrics)
+    + [Trimmed mean vs median](#trimmed-mean-vs-median)
+  * [Compared configurations](#compared-configurations)
+- [Testbed](#testbed)
+  * [Prometheus](#prometheus)
+  * [Configurations](#configurations)
+- [Benchmarks](#benchmarks)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
 ## Methodology
 
 ### Types of load

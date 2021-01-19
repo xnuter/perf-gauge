@@ -1,3 +1,20 @@
+- [Moderate TPS](#moderate-tps)
+    * [High-performance (C, C++, Rust)](#high-performance--c--c----rust-)
+        + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99-)
+        + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999-)
+        + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
+        + [CPU and Memory consumption](#cpu-and-memory-consumption)
+            - [Summary](#summary)
+    * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages--rust--golang--java--python-)
+        + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99--1)
+        + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999--1)
+        + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation-1)
+        + [Summary](#summary-1)
+    * [Total summary](#total-summary)
+    * [Conclusion](#conclusion)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
 ### Moderate TPS
 
 Payload starts at `10,000 rps` with `1,000` increment until it reaches `25,000 rps`.
