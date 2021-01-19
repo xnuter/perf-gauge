@@ -11,7 +11,6 @@ use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
 use crate::prometheus_reporter::PrometheusReporter;
 use clap::{clap_app, ArgMatches};
 use core::fmt;
-use serde::export::Formatter;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -206,7 +205,7 @@ impl BenchmarkConfig {
 }
 
 impl fmt::Display for BenchmarkConfig {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Mode={:?}, RateLadder={:?}, Concurrency={}",
