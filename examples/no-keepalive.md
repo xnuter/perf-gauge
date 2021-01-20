@@ -28,25 +28,25 @@ Only a single request is sent over each connection.
 HAProxy beats both C++ and Rust for handling new connections even at `p50` level.
 C++ is faster than Rust:
 
-![](./prom/no-keepalive-baseline-c-cpp-rust-p50-99.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-baseline-c-cpp-rust-p50-99.png)
 
 ##### Tail latency (p99.9 and p99.99)
 
 For the tail latency, Rust is better than both C++, but HAProxy is still the best out of these three:
 
-![](./prom/no-keepalive-baseline-c-cpp-rust-tail.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-baseline-c-cpp-rust-tail.png)
 
 ##### Trimmed mean and standard deviation
 
 Same here, HAProxy is noticeably better, Rust is doing slightly worse than C++:
 
-![](./prom/no-keepalive-baseline-c-cpp-rust-mean.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-baseline-c-cpp-rust-mean.png)
 
 ##### CPU
 
 HAProxy is again better than both C++/Rust (which are roughly equal here):
 
-![](./prom/no-keepalive-baseline-c-cpp-rust-cpu.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-baseline-c-cpp-rust-cpu.png)
 
 ##### Summary
 
@@ -70,28 +70,28 @@ But it quickly lags behind at `p99` level, adding `~1.5 ms`.
 
 Java and Python exhibit substantially higher latencies, but Java `p99` latency is much worse than Python:
 
-![](./prom/no-keepalive-rust-golang-java-python-p50-99.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-rust-golang-java-python-p50-99.png)
 
 ##### Tail latency (p99.9 and p99.99)
 
 For tail latency Rust is doing substantially better than other, with a close second Golang.
 Java latency is appalling:
 
-![](./prom/no-keepalive-rust-golang-java-python-tail.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-rust-golang-java-python-tail.png)
 
 ##### Trimmed mean and standard deviation
 
 In terms of the trimmed median Golang is slightly better but is much worse in terms of variance.
 Java's latency is much worse:
 
-![](./prom/no-keepalive-rust-golang-java-python-mean.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-rust-golang-java-python-mean.png)
 
 ##### CPU and Memory consumption
 
 Rust is the leanest of all. Please note, that Java and Python are doing `~40%` of work compared to Rust/Golang,
 but Java consumes even more CPU:
 
-![](./prom/no-keepalive-rust-golang-java-python-cpu.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-rust-golang-java-python-cpu.png)
 
 ##### Summary
 

@@ -2,7 +2,7 @@
 
 Repository: https://pypi.org/project/pproxy/
 
-`pproxy` is a single threaded `asyncio` app, so to utilize two cores, we need to run two instances.
+`pproxy` is a single-threaded `asyncio` app, so to utilize two cores, we need to run two instances.
 
 ```bash
 sudo cgcreate -t $USER:$USER -a $USER:$USER  -g cpuset:pyproxy1

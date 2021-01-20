@@ -1,6 +1,6 @@
 ### Setting up HAProxy
 
-We need to specify TCP frontend and backend. It's important to turn off logging, otherwise it would flood the disk.
+We need to specify TCP frontend and backend. It's important to turn off logging. Otherwise, it would flood the disk.
 Also, it should only use cores #2 and #3: 
 
 ```

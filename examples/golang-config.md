@@ -1,4 +1,4 @@
-### Running tpc-proxy (Golang)
+### Running TCP-proxy (Golang)
 
 Repository: https://github.com/ickerwx/tcpproxy/
 
