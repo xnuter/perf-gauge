@@ -66,6 +66,8 @@ In contrast, the traditional mean is susceptible to noise and outliers and not a
 
 These benchmarks compare TCP proxies written in different languages, which use Non-blocking I/O.
 Why TCP proxies? This is the simplest application dealing with the network I/O. All it does, is connection establishment and forwarding traffic.
+Why Non-blocking I/O? You can read [this post](https://medium.com/swlh/distributed-systems-and-asynchronous-i-o-ef0f27655ce5) which tries to demonstrate why 
+Non-blocking I/O is a much better option for network applications.
 
 Let's say, you're building a network service. TCP proxy benchmarks are the lower boundary for the request latency it may have.
 Everything else is added on top of that (e.g. parsing, validating, packing, traversing, construction of data, etc.).
@@ -79,6 +81,8 @@ So the following solutions are being compared:
 * `tcp-proxy` - a Golang solution: https://github.com/ickerwx/tcpproxy/
 * `NetCrusher` - a Java solution (Java NIO): https://github.com/NetCrusherOrg/NetCrusher-java/
 * `pproxy` - a Python solution based on `asyncio` (running in TCP Proxy mode): https://pypi.org/project/pproxy/
+
+Thanks to [Cesar](https://github.com/cmello/) who coded the TCP proxy in C++ to make this benchmark possible.
 
 ## Testbed
 
