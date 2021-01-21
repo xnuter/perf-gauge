@@ -28,9 +28,9 @@ Emitted metrics are:
 * `success_latency` - latency histogram of successful requests only
 * `error_latency` - latency histogram of failed requests (if any)
 * `latency` - latency histogram across all requests
-* `latency_{statistic}` - `{statistic} = {min, mean, max, stddev, p50, p90, p99, p99_9, p99_99}` - gauges for latency statistics
+* `latency_{statistic}` - `{statistic} = {min, mean, max, stddev, p50, p90, p99, p99_9, p99_99, tm99, tm99.9, tm99.99}` - gauges for latency statistics
 
-You can [read more here](./examples).
+For instance, [benchmarking](https://github.com/xnuter/perf-gauge/wiki/Benchmarking-TCP-Proxies-written-in-different-languages:-C,-CPP,-Rust,-Golang,-Java,-Python) TCP proxies in different languages: C, C++, Rust, Golang, Java, Python.
 
 Usage
 ======
