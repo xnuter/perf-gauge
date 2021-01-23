@@ -18,7 +18,7 @@ It works in the following modes:
 1. Increase the request rate linearly, e.g. by `1,000` every minute to see how your service scales with load.
 1. It can report metrics to `Prometheus` via a `pushgateway`.
 
-For instance: ![](./examples/prom/http-tunnel-rust-latency.png).
+For instance: ![](./examples/prom/baseline-nginx-stable-p50-99.png).
 
 Emitted metrics are:
 * `request_count` - counter for all requests

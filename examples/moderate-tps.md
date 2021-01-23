@@ -1,19 +1,17 @@
 - [Moderate TPS](#moderate-tps)
-    * [High-performance (C, C++, Rust)](#high-performance--c--c----rust-)
-        + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99-)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999-)
+    * [High-performance (C, C++, Rust)](#high-performance-c-c-rust)
+        + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099)
+        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
         + [CPU and Memory consumption](#cpu-and-memory-consumption)
         + [Summary](#summary)
-    * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages--rust--golang--java--python-)
-        + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99--1)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999--1)
+    * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages-rust-golang-java-python)
+        + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099-1)
+        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999-1)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation-1)
         + [Summary](#summary-1)
     * [Total summary](#total-summary)
     * [Conclusion](#conclusion)
-
-<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
 ### Moderate TPS
 
@@ -24,34 +22,34 @@ Then stay there for 10 minutes.
 
 ##### Regular percentiles (p50,90,99)
 
-We can see that all three add `50-100µs` on top of baseline, with slightly better latency for C++.
+We can see that all three add `50-100µs` on top of the baseline, with slightly better latency for C++.
 
-![](./prom/baseline-c-cpp-rust-p50-99.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/baseline-c-cpp-rust-p50-99.png)
 
 ##### Tail latency (p99.9 and p99.99)
 
-For tail latency the results are somewhat mixed. While for `p99.9` the best results are shown by C++,
+For tail latency, the results are somewhat mixed. While for `p99.9` the best results are shown by C++,
 for `p99.99` `C++' is the worst, and Rust is the best:
 
-![](./prom/baseline-c-cpp-rust-tail.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/baseline-c-cpp-rust-tail.png)
 
 ##### Trimmed mean and standard deviation
 
-All three are nearly identical, adding `~50µs` to the mean, and `~15µs` to stddev:
+All three are nearly identical, adding `~50µs` to the mean, and `~15µs` to standard deviation:
 
-![](./prom/baseline-c-cpp-rust-mean.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/baseline-c-cpp-rust-mean.png)
 
 ##### CPU and Memory consumption
 
-We can see that CPU utilization for all C, C++ and Rust are close, however,
+We can see that CPU utilization for all C, C++, and Rust are close, however,
 C++ consumes slightly more than Rust, and Rust consumes slightly more than C.
 
-![](./prom/baseline-c-cpp-rust-cpu.png)
+![](https://raw.githubusercontent.com/perf-gauge/main/examples/prom/baseline-c-cpp-rust-cpu.png)
 
 Memory consumption is on par for C++ and Rust, but HAProxy consumes more memory.
-However, the difference is really negligible and on order of 0.1% of the total memory.
+However, the difference is really negligible and on the order of 0.1% of the total memory.
 
-![](./prom/baseline-c-cpp-rust-memory.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/baseline-c-cpp-rust-memory.png)
 
 ##### Summary
 
@@ -66,7 +64,7 @@ However, the difference is really negligible and on order of 0.1% of the total m
 
 ##### Regular percentiles (p50,90,99)
 
-Please note, that for Java and Python the max TPS was somewhat lowered,
+Please note that for Java and Python, the max TPS was somewhat lowered,
 because of the inability of the TCP Proxies to handle more.
 
 So the comparison was between:
@@ -75,25 +73,25 @@ So the comparison was between:
 * Java - 15k rps
 * Python - 10k rps
 
-Now we can see, that at `p50`-`p90` level Golang is somewhat comparable to Rust,
+Now we can see that at `p50`-`p90` level, Golang is somewhat comparable to Rust,
 but quickly deviates at `p99` level, adding a whole millisecond.
 
 Java and Python with lower RPS exhibit substantially higher latencies:
 
-![](./prom/rust-golang-java-python-p50-99.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/rust-golang-java-python-p50-99.png)
 
 ##### Tail latency (p99.9 and p99.99)
 
-Tail latency shows even larger difference with Rust, and for Java is the worst of all four:
+Tail latency shows an even larger difference with Rust, and for Java is the worst of all four:
 
-![](./prom/rust-golang-java-python-tail.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/rust-golang-java-python-tail.png)
 
 ##### Trimmed mean and standard deviation
 
-While the trimmed mean is not dramatically worse for Golang, compared to Rust.
+While the trimmed mean is not dramatically worse for Golang compared to Rust.
 But the standard deviation is. Again, Java and Python are well behind both Rust and Golang:
 
-![](./prom/rust-golang-java-python-mean.png)
+![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/rust-golang-java-python-mean.png)
 
 ##### Summary
 
@@ -119,5 +117,5 @@ But the standard deviation is. Again, Java and Python are well behind both Rust 
 #### Conclusion
 
 The Rust solution is on par with C/C++ solutions at all levels.
-Golang is fine at `p50-90`, but for the tail latencies and standard deviation not as good.
-NetCrusher and pproxy are unlikely suitable for latency sensitive applications.
+Golang is fine at `p50-90`, but the tail latencies and standard deviation are not as good.
+NetCrusher and pproxy are unlikely suitable for latency-sensitive applications.

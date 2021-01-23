@@ -8,7 +8,7 @@ echo 4-7 > /sys/fs/cgroup/cpuset/perfgauge/cpuset.cpus
 echo 0 > /sys/fs/cgroup/cpuset/perfgauge/cpuset.mems
 ```
 
-Then we can run it in different modes. 
+Then we can run it in different modes.
 
 ### Variables
 
@@ -40,7 +40,7 @@ cgexec -g cpuset:perfgauge --sticky \
       http ${ENDPOINTS} --conn_reuse
 ```
 
-The epxlanation of the parameters:
+The explanation of the parameters:
 
 * `--concurrency 10` - the number of clients generating load concurrently
 * `--rate 1000 --rate_step 1000 --rate_max 25000` - start with rate 1000 rps, then add 1000 rps after each step until it reaches 25k.
