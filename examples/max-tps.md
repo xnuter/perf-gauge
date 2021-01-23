@@ -1,22 +1,20 @@
 - [Max TPS](#max-tps)
-    * [High-performance (C, C++, Rust)](#high-performance--c--c----rust-)
+    * [High-performance (C, C++, Rust)](#high-performance-c-c-rust)
         + [Maximum rate achieved](#maximum-rate-achieved)
-        + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99-)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999-)
+        + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099)
+        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
         + [CPU consumption](#cpu-consumption)
         + [Summary](#summary)
-    * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages--rust--golang--java--python-)
+    * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages-rust-golang-java-python)
         + [Maximum rate achieved](#maximum-rate-achieved-1)
-        + [Regular percentiles (p50,90,99)](#regular-percentiles--p50-90-99--1)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency--p999-and-p9999--1)
+        + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099-1)
+        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999-1)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation-1)
         + [CPU consumption](#cpu-consumption-1)
         + [Summary](#summary-1)
     * [Total summary](#total-summary)
     * [Conclusion](#conclusion)
-
-<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
 ### Max TPS
 

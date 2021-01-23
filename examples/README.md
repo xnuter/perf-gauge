@@ -82,7 +82,7 @@ So the following solutions are being compared:
 * `NetCrusher` - a Java solution (Java NIO): https://github.com/NetCrusherOrg/NetCrusher-java/
 * `pproxy` - a Python solution based on `asyncio` (running in TCP Proxy mode): https://pypi.org/project/pproxy/
 
-Thanks to [Cesar](https://github.com/cmello/) who coded the TCP proxy in C++ to make this benchmark possible.
+Thanks to [Cesar Mello](https://github.com/cmello/) who coded the TCP proxy in C++ to make this benchmark possible.
 
 ## Testbed
 
