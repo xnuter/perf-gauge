@@ -18,7 +18,7 @@ use tokio::io;
 
 #[derive(Clone, Debug)]
 pub enum BenchmarkMode {
-    HTTP(HttpBenchAdapter),
+    Http(HttpBenchAdapter),
 }
 
 #[derive(Clone, Builder)]
@@ -171,7 +171,7 @@ impl BenchmarkConfig {
                 )
                 .build()
                 .expect("BenchmarkModeBuilder failed");
-            BenchmarkMode::HTTP(http_config)
+            BenchmarkMode::Http(http_config)
         } else {
             unreachable!("Unknown subcommand: {}", matches.subcommand().unwrap().0);
         };

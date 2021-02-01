@@ -122,7 +122,7 @@ impl BenchBatch {
                 bench_run
                     .send_load(
                         match bench_protocol_adapter.as_ref() {
-                            BenchmarkMode::HTTP(http_bench_session) => http_bench_session,
+                            BenchmarkMode::Http(http_bench_session) => http_bench_session,
                         },
                         metrics_channel,
                     )

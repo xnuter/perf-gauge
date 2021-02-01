@@ -112,7 +112,7 @@ impl BenchRun {
 #[cfg(test)]
 mod tests {
     use crate::bench_session::RateLadderBuilder;
-    use crate::configuration::BenchmarkMode::HTTP;
+    use crate::configuration::BenchmarkMode::Http;
     use crate::configuration::{BenchmarkConfig, BenchmarkConfigBuilder};
     use crate::http_bench_session::HttpBenchAdapterBuilder;
     use crate::metrics::BenchRunMetrics;
@@ -150,7 +150,7 @@ mod tests {
                     .build()
                     .expect("RateLadderBuilder failed"),
             )
-            .mode(HTTP(http_adapter.clone()))
+            .mode(Http(http_adapter.clone()))
             .build()
             .expect("BenchmarkConfig failed");
 
