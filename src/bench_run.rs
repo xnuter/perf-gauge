@@ -85,7 +85,7 @@ impl BenchRun {
     pub async fn send_load(
         mut self,
         bench_protocol_adapter: &impl BenchmarkProtocolAdapter,
-        mut metrics_channel: Sender<RequestStats>,
+        metrics_channel: Sender<RequestStats>,
     ) -> Result<(), String> {
         let client = bench_protocol_adapter.build_client()?;
 

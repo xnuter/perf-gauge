@@ -48,7 +48,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
             .danger_accept_invalid_certs(self.ignore_cert)
             .user_agent("perf-gauge, v0.1.0")
             .connection_verbose(self.verbose)
-            .tcp_nodelay_(true)
+            .tcp_nodelay(true)
             .connect_timeout(Duration::from_secs(10));
 
         if self.http2_only {
