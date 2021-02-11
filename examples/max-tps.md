@@ -2,14 +2,14 @@
     * [High-performance (C, C++, Rust)](#high-performance-c-c-rust)
         + [Maximum rate achieved](#maximum-rate-achieved)
         + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999)
+        + [Outliers (p99.9 and p99.99)](#outliers-p999-and-p9999)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
         + [CPU consumption](#cpu-consumption)
         + [Summary](#summary)
     * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages-rust-golang-java-python)
         + [Maximum rate achieved](#maximum-rate-achieved-1)
         + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099-1)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999-1)
+        + [Outliers (p99.9 and p99.99)](#outliers-p999-and-p9999-1)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation-1)
         + [CPU consumption](#cpu-consumption-1)
         + [Summary](#summary-1)
@@ -42,9 +42,9 @@ At the `p90` level, all three are close:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/max-baseline-c-cpp-rust-p50-99.png)
 
-##### Tail latency (p99.9 and p99.99)
+##### Outliers (p99.9 and p99.99)
 
-For the tail latency, Rust is better than both C and C++:
+For the outliers, Rust is better than both C and C++:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/max-baseline-c-cpp-rust-tail.png)
 
@@ -104,9 +104,9 @@ Java and Python exhibit substantially higher latencies, but Java `p99` latency i
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/max-rust-golang-java-python-p50-99.png)
 
-##### Tail latency (p99.9 and p99.99)
+##### Outliers (p99.9 and p99.99)
 
-Tail latency shows an even larger difference with Rust, and for Java is the worst of all four:
+Outliers show an even larger difference with Rust, and for Java is the worst of all four:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/max-rust-golang-java-python-tail.png)
 

@@ -37,8 +37,8 @@ To compare different solutions, we use the following set of metrics:
 * Latency (in microseconds, or `µs`)
   * `p50` (median) - a value that is greater than 50% of observed latency samples
   * `p90` - 90th percentile, or a value that is better than 9 out of 10 latency samples. Usually a good proxy for a perceivable latency by humans.
-  * `p99` - 99th percentile, the threshold for the worst 1% of samples.
-  * tail-latencies: `p99.9` and `p99.99` - may be important for systems with multiple network hops or large fan-outs (e.g., a request gathers data from tens or hundreds of microservices)
+  * Tail latency `p99` - 99th percentile, the threshold for the worst 1% of samples.
+  * Outliers: `p99.9` and `p99.99` - may be important for systems with multiple network hops or large fan-outs (e.g., a request gathers data from tens or hundreds of microservices)
   * `max` - the worst-case.
   * `tm99.9` - trimmed mean, or the mean value of all samples without the best and worst 0.1%. It is more useful than the traditional mean, as it removes a potentially disproportionate influence of outliers: https://en.wikipedia.org/wiki/Truncated_mean
   * `stddev` - the standard deviation of the latency. The lower, the better: https://en.wikipedia.org/wiki/Standard_deviation

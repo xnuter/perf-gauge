@@ -1,13 +1,13 @@
 - [Moderate TPS](#moderate-tps)
     * [High-performance (C, C++, Rust)](#high-performance-c-c-rust)
         + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999)
+        + [Outliers (p99.9 and p99.99)](#outliers-latency-p999-and-p9999)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
         + [CPU and Memory consumption](#cpu-and-memory-consumption)
         + [Summary](#summary)
     * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages-rust-golang-java-python)
         + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099-1)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999-1)
+        + [Outliers (p99.9 and p99.99)](#outliers-latency-p999-and-p9999-1)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation-1)
         + [Summary](#summary-1)
     * [Total summary](#total-summary)
@@ -26,9 +26,9 @@ We can see that all three add `50-100µs` on top of the baseline, with slightly 
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/baseline-c-cpp-rust-p50-99.png)
 
-##### Tail latency (p99.9 and p99.99)
+##### Outliers (p99.9 and p99.99)
 
-For tail latency, the results are somewhat mixed. While for `p99.9` the best results are shown by C++,
+For outliers, the results are somewhat mixed. While for `p99.9` the best results are shown by C++,
 for `p99.99` `C++' is the worst, and Rust is the best:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/baseline-c-cpp-rust-tail.png)
@@ -80,9 +80,9 @@ Java and Python with lower RPS exhibit substantially higher latencies:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/rust-golang-java-python-p50-99.png)
 
-##### Tail latency (p99.9 and p99.99)
+##### Outliers (p99.9 and p99.99)
 
-Tail latency shows an even larger difference with Rust, and for Java is the worst of all four:
+Outliers show an even larger difference with Rust, and for Java is the worst of all four:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/rust-golang-java-python-tail.png)
 

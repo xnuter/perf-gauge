@@ -1,13 +1,13 @@
 - [No keep-alive](#no-keep-alive)
     * [High-performance (C, C++, Rust)](#high-performance-c-c-rust)
         + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999)
+        + [Outliers (p99.9 and p99.99)](#outliers-p999-and-p9999)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation)
         + [CPU](#cpu)
         + [Summary](#summary)
     * [Memory-safe languages (Rust, Golang, Java, Python)](#memory-safe-languages-rust-golang-java-python)
         + [Regular percentiles (p50,90,99)](#regular-percentiles-p509099-1)
-        + [Tail latency (p99.9 and p99.99)](#tail-latency-p999-and-p9999-1)
+        + [Outliers (p99.9 and p99.99)](#outliers-p999-and-p9999-1)
         + [Trimmed mean and standard deviation](#trimmed-mean-and-standard-deviation-1)
         + [CPU and Memory consumption](#cpu-and-memory-consumption)
         + [Summary](#summary-1)
@@ -28,9 +28,9 @@ C++ is faster than Rust:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-baseline-c-cpp-rust-p50-99.png)
 
-##### Tail latency (p99.9 and p99.99)
+##### Outliers (p99.9 and p99.99)
 
-For the tail latency, Rust is better than both C++, but HAProxy is still the best out of these three:
+For the outliers, Rust is better than both C++, but HAProxy is still the best out of these three:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-baseline-c-cpp-rust-tail.png)
 
@@ -70,9 +70,9 @@ Java and Python exhibit substantially higher latencies, but Java `p99` latency i
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-rust-golang-java-python-p50-99.png)
 
-##### Tail latency (p99.9 and p99.99)
+##### Outliers (p99.9 and p99.99)
 
-For tail latency Rust is doing substantially better than other, with a close second Golang.
+For outliers Rust is doing substantially better than other, with a close second Golang.
 Java latency is appalling:
 
 ![](https://raw.githubusercontent.com/xnuter/perf-gauge/main/examples/prom/no-keepalive-rust-golang-java-python-tail.png)
