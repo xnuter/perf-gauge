@@ -44,10 +44,10 @@ jobs:
           args: --all
 
       - name: Build
-          uses: actions-rs/cargo@v1
-          with:
-            command: build
-            args: --release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
 
       - name: Create artifact directory
         run: mkdir artifacts
