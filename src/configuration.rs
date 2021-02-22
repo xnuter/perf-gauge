@@ -12,10 +12,10 @@ use crate::prometheus_reporter::PrometheusReporter;
 use clap::{clap_app, ArgMatches};
 use core::fmt;
 use std::net::SocketAddr;
+use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io;
-use std::process::exit;
 
 #[derive(Clone, Debug)]
 pub enum BenchmarkMode {
