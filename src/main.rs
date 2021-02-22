@@ -33,12 +33,12 @@ use tokio::io;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    init_logger();
-
     let mut benchmark_config = BenchmarkConfig::from_command_line().map_err(|e| {
         println!("Failed to process parameters. Exiting.");
         e
     })?;
+
+    init_logger();
 
     info!("Starting with configuration {}", benchmark_config);
 
