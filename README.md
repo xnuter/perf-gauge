@@ -32,19 +32,23 @@ Emitted metrics are:
 
 For instance, [benchmarking](https://github.com/xnuter/perf-gauge/wiki/Benchmarking-TCP-Proxies-written-in-different-languages:-C,-CPP,-Rust,-Golang,-Java,-Python) TCP proxies in different languages: C, C++, Rust, Golang, Java, Python.
 
-Usage
+Installation
 ======
+
+For `MacOS`, `Ubuntu`, `Windows` you can use the binaries in the [release section](https://github.com/xnuter/perf-gauge/releases). 
+
+Alternatively you can build it on your machine:
 
 Install cargo - follow these [instructions](https://doc.rust-lang.org/cargo/getting-started/installation.html).
 
 On Debian to fix [OpenSSL build issue](https://docs.rs/openssl/0.10.30/openssl/). E.g. on Debian:
 
-```
+```bash
 sudo apt-get install pkg-config libssl-dev
 ```
 
 on `Red-Hat`:
-```
+```bash
 sudo dnf install pkg-config openssl-devel
 # or
 sudo yum install pkg-config openssl-devel
@@ -53,8 +57,15 @@ sudo yum install pkg-config openssl-devel
 Then:
 ```
 $ cargo install perf-gauage
-$ perf-gauge help 
+```
 
+Usage
+=======
+```bash
+$ perf-gauge help 
+```
+
+```text
 A tool for gauging performance of network services
 
 USAGE:
@@ -92,9 +103,10 @@ SUBCOMMANDS:
 
 Help for the `http` command:
 
-```
+```bash
 $ perf-gauge help http
-
+```
+```text
 Run in HTTP(S) mode
 
 USAGE:
@@ -121,7 +133,7 @@ OPTIONS:
 
 For example, test an endpoint using a single run, 5 seconds (max possible request rate):
 
-```
+```bash
 $ perf-gauge --concurrency 10 \
                --duration 10s \
                http http://localhost/10kb --conn_reuse
@@ -140,7 +152,7 @@ Another use case, is to increase request rate and see how the latency degrades.
 
 E.g. increase RPS each minute by 1,000: 
 
-```
+```bash
 export PROMETHEUS_HOST=10.138.0.2
 
 $ perf-gauge --concurrency 10 \

@@ -15,6 +15,7 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io;
+use std::process::exit;
 
 #[derive(Clone, Debug)]
 pub enum BenchmarkMode {
@@ -39,7 +40,7 @@ impl BenchmarkConfig {
     pub fn from_command_line() -> io::Result<BenchmarkConfig> {
         let matches = clap_app!(myapp =>
             (name: "Performance Gauge")
-            (version: "0.1.0")
+            (version: "0.1.4")
             (author: "Eugene Retunsky")
             (about: "A tool for gauging performance of network services")
             (@arg CONCURRENCY: --concurrency -c +takes_value "Concurrent clients. Default `1`.")
@@ -56,7 +57,7 @@ impl BenchmarkConfig {
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
             (@subcommand http =>
                 (about: "Run in HTTP(S) mode")
-                (version: "0.1.0")
+                (version: "0.1.4")
                 (@arg TUNNEL: --tunnel +takes_value "HTTP Tunnel used for connection, e.g. http://my-proxy.org")
                 (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates. Applies to the target (not proxy).")
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
@@ -173,7 +174,8 @@ impl BenchmarkConfig {
                 .expect("BenchmarkModeBuilder failed");
             BenchmarkMode::Http(http_config)
         } else {
-            unreachable!("Unknown subcommand: {}", matches.subcommand().unwrap().0);
+            println!("Run `perf-gauge help` to see program options.");
+            exit(1);
         };
         mode
     }
