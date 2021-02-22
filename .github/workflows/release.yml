@@ -12,7 +12,7 @@ env:
   RELEASE_ADDS: README.md LICENSE
 
 jobs:
-  grcov:
+  release-bin:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
