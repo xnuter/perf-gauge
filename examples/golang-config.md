@@ -1,6 +1,6 @@
 ### Running TCP-proxy (Golang)
 
-Repository: https://github.com/ickerwx/tcpproxy/
+Repository: https://github.com/jpillora/go-tcp-proxy
 
 ```bash
 cd ~/go/src/github.com/jpillora/go-tcp-proxy/cmd/tcp-proxy
