@@ -78,7 +78,7 @@ So the following solutions are being compared:
 * HAProxy (`perf-gauge <-> HAProxy <-> nginx`) - HAProxy in TCP-proxy mode. To compare to a mature solution written in `C`: http://www.haproxy.org/
 * `draft-http-tunnel` - a simple C++ solution with very basic functionality (asio) (running in TCP mode): https://github.com/cmello/draft-http-tunnel/
 * `http-tunnel` - a simple HTTPTunnel written in Rust (tokio) (running in TCP mode): https://github.com/xnuter/http-tunnel/
-* `tcp-proxy` - a Golang solution: https://github.com/ickerwx/tcpproxy/
+* `tcp-proxy` - a Golang solution: https://github.com/jpillora/tcpproxy/
 * `NetCrusher` - a Java solution (Java NIO): https://github.com/NetCrusherOrg/NetCrusher-java/
 * `pproxy` - a Python solution based on `asyncio` (running in TCP Proxy mode): https://pypi.org/project/pproxy/
 
