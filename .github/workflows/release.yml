@@ -38,12 +38,6 @@ jobs:
           override: true
           profile: minimal
 
-      - name: Execute tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all
-
       - name: Build
         uses: actions-rs/cargo@v1
         with:
