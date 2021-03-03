@@ -15,7 +15,7 @@ pub struct PrometheusReporter {
 
 impl ExternalMetricsServiceReporter for PrometheusReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()> {
-        info!("Sending metrics to Prometheus: {}", self.address,);
+        info!("Sending metrics to Prometheus: {}", self.address, );
 
         let registry = PrometheusReporter::build_registry(metrics);
 
@@ -35,15 +35,13 @@ impl ExternalMetricsServiceReporter for PrometheusReporter {
             labels_map,
             &self.address,
             metric_families,
-            match self.basic_auth.as_ref() {
-                None => None,
-                Some(auth) => Some(BasicAuthentication {
+            self.basic_auth.as_ref()
+                .map(|auth| BasicAuthentication {
                     username: auth.username.clone(),
                     password: auth.password.clone(),
                 }),
-            },
         )
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
 
     fn shutdown(&self) {
@@ -163,7 +161,7 @@ impl PrometheusReporter {
         let prometheus_histogram = prometheus::Histogram::with_opts(
             HistogramOpts::new(name, help).buckets(buckets.clone()),
         )
-        .expect("Histogram failed");
+            .expect("Histogram failed");
 
         registry
             .register(Box::new(prometheus_histogram.clone()))
@@ -443,10 +441,10 @@ mod test {
             "PUT",
             "/metrics/job/prometheus_job/testname/test-prometheus",
         )
-        .with_status(200)
-        .with_header("content-type", "text/plain")
-        .with_body("world")
-        .create();
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body("world")
+            .create();
 
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
