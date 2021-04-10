@@ -214,21 +214,36 @@ impl fmt::Display for BenchRunReport {
             writeln!(f, "Latency:")?;
             let mut max_label_len = 0;
             let mut max_value_len = 0;
+            let mut min_value = 1_000_000_000;
             for (label, value) in self.latency_summary.iter() {
                 max_label_len = max_label_len.max(label.len());
                 max_value_len = max_value_len.max(value.to_string().len());
+                min_value = min_value.min(*value);
             }
+            let use_ms = min_value > 20_000;
+
             for (label, value) in self.latency_summary.iter() {
                 let label_spacing = " ".repeat(max_label_len - label.len() + 1);
                 let value_spacing = " ".repeat(max_value_len - value.to_string().len() + 1);
-                writeln!(
-                    f,
-                    "{label}{label_spacing}:{value_spacing}{value}µs",
-                    label = label,
-                    value = value,
-                    label_spacing = label_spacing,
-                    value_spacing = value_spacing
-                )?;
+                if use_ms {
+                    writeln!(
+                        f,
+                        "{label}{label_spacing}:{value_spacing}{value:.2}ms",
+                        label = label,
+                        value = *value as f64 / 1000.0,
+                        label_spacing = label_spacing,
+                        value_spacing = value_spacing
+                    )?;
+                } else {
+                    writeln!(
+                        f,
+                        "{label}{label_spacing}:{value_spacing}{value}µs",
+                        label = label,
+                        value = value,
+                        label_spacing = label_spacing,
+                        value_spacing = value_spacing
+                    )?;
+                }
             }
             Ok(())
         } else {
