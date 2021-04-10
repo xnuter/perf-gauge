@@ -8,6 +8,7 @@ use crate::bench_run::BenchmarkProtocolAdapter;
 /// except according to those terms.
 use crate::metrics::{RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use log::error;
 use rand::{thread_rng, Rng};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
@@ -75,13 +76,26 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
         let response = client.execute(request).await;
 
         match response {
-            Ok(r) => RequestStatsBuilder::default()
-                .bytes_processed(r.content_length().unwrap_or(0) as usize)
-                .status(r.status().to_string())
-                .is_success(r.status().is_success())
-                .duration(Instant::now().duration_since(start))
-                .build()
-                .expect("RequestStatsBuilder failed"),
+            Ok(r) => {
+                let status = r.status().to_string();
+                let success = r.status().is_success();
+                let mut stream = r.bytes_stream();
+                let mut total_size = 0;
+                while let Some(item) = stream.next().await {
+                    if let Ok(bytes) = item {
+                        total_size += bytes.len();
+                    } else {
+                        break;
+                    }
+                }
+                RequestStatsBuilder::default()
+                    .bytes_processed(total_size)
+                    .status(status)
+                    .is_success(success)
+                    .duration(Instant::now().duration_since(start))
+                    .build()
+                    .expect("RequestStatsBuilder failed")
+            }
             Err(e) => {
                 error!("Error sending request: {}", e);
                 let status = match e.status() {
