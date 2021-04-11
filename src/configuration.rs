@@ -1,4 +1,5 @@
 use crate::bench_session::{BenchSession, BenchSessionBuilder, RateLadder, RateLadderBuilder};
+use crate::gcs_bench_adapter::{GcsBenchAdapter, GcsBenchAdapterBuilder};
 /// Copyright 2020 Developers of the perf-gauge project.
 ///
 /// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -20,6 +21,7 @@ use tokio::io;
 #[derive(Clone, Debug)]
 pub enum BenchmarkMode {
     Http(HttpBenchAdapter),
+    Gcs(GcsBenchAdapter),
 }
 
 #[derive(Clone, Builder)]
@@ -40,7 +42,7 @@ impl BenchmarkConfig {
     pub fn from_command_line() -> io::Result<BenchmarkConfig> {
         let matches = clap_app!(myapp =>
             (name: "Performance Gauge")
-            (version: "0.1.4")
+            (version: "0.1.7")
             (author: "Eugene Retunsky")
             (about: "A tool for gauging performance of network services")
             (@arg CONCURRENCY: --concurrency -c +takes_value "Concurrent clients. Default `1`.")
@@ -57,7 +59,7 @@ impl BenchmarkConfig {
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
             (@subcommand http =>
                 (about: "Run in HTTP(S) mode")
-                (version: "0.1.4")
+                (version: "0.1.7")
                 (@arg TUNNEL: --tunnel +takes_value "HTTP Tunnel used for connection, e.g. http://my-proxy.org")
                 (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates. Applies to the target (not proxy).")
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
@@ -67,6 +69,13 @@ impl BenchmarkConfig {
                 (@arg METHOD: --method -M +takes_value "Method. By default GET")
                 (@arg HEADER: --header -H ... "Headers in \"Name:Value\" form. Can be provided multiple times.")
                 (@arg BODY: --body -B  +takes_value "Body of the request in base64. Optional.")
+            )
+            (@subcommand gcs =>
+                (about: "Run in GCS mode")
+                (version: "0.1.7")
+                (@arg PROJECT: --project +takes_value "GCP project id")
+                (@arg BUCKET: --bucket +takes_value "GCS bucket")
+                (@arg OBJECT: --object -O ... "GCS bucket objects")
             )
         ).get_matches();
 
@@ -173,6 +182,30 @@ impl BenchmarkConfig {
                 .build()
                 .expect("BenchmarkModeBuilder failed");
             BenchmarkMode::Http(http_config)
+        } else if let Some(config) = matches.subcommand_matches("gcs") {
+            let gcs_config = GcsBenchAdapterBuilder::default()
+                .gcp_project(
+                    config
+                        .value_of("PROJECT")
+                        .map(|s| s.to_string())
+                        .expect("GCP project is required"),
+                )
+                .bucket(
+                    config
+                        .value_of("BUCKET")
+                        .map(|s| s.to_string())
+                        .expect("GCS bucket is required"),
+                )
+                .objects(
+                    config
+                        .values_of("OBJECT")
+                        .expect("misconfiguration for OBJECT")
+                        .map(|s| s.to_string())
+                        .collect(),
+                )
+                .build()
+                .expect("GcsBenchAdapterBuilder failed");
+            BenchmarkMode::Gcs(gcs_config)
         } else {
             println!("Run `perf-gauge help` to see program options.");
             exit(1);

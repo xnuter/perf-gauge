@@ -13,6 +13,7 @@ extern crate derive_builder;
 mod bench_run;
 mod bench_session;
 mod configuration;
+mod gcs_bench_adapter;
 mod http_bench_session;
 mod metrics;
 mod prometheus_reporter;

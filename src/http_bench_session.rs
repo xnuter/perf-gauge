@@ -44,7 +44,7 @@ pub struct HttpBenchAdapter {
 impl BenchmarkProtocolAdapter for HttpBenchAdapter {
     type Client = reqwest::Client;
 
-    fn build_client(&self) -> Result<Self::Client, String> {
+    async fn build_client(&self) -> Result<Self::Client, String> {
         let mut client_builder = reqwest::Client::builder()
             .danger_accept_invalid_certs(self.ignore_cert)
             .user_agent("perf-gauge, v0.1.0")
@@ -188,7 +188,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{:?}", stats);
@@ -222,7 +222,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{:?}", stats);
@@ -247,7 +247,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{:?}", stats);
@@ -273,7 +273,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let result = timeout(Duration::from_secs(1), http_bench.send_request(&client)).await;
 
         assert!(
