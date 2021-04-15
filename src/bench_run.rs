@@ -180,6 +180,9 @@ mod tests {
 
         assert_eq!(body.len() * request_count, stats.total_bytes);
         assert_eq!(request_count, stats.total_requests);
-        assert_eq!(stats.summary.get("200 OK"), Some(&(request_count as i32)));
+        assert_eq!(
+            stats.summary.get("200 OK, Connection: close"),
+            Some(&(request_count as i32))
+        );
     }
 }

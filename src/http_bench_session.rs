@@ -77,7 +77,13 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
 
         match response {
             Ok(r) => {
-                let status = r.status().to_string();
+                let mut status = r.status().to_string();
+                if let Some(connection_header) = r.headers().get("connection") {
+                    if let Ok(value) = connection_header.to_str() {
+                        status.push_str(", Connection: ");
+                        status.push_str(value);
+                    }
+                }
                 let success = r.status().is_success();
                 let mut stream = r.bytes_stream();
                 let mut total_size = 0;
@@ -193,7 +199,7 @@ mod tests {
 
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
-        assert_eq!("200 OK".to_string(), stats.status);
+        assert_eq!("200 OK, Connection: close".to_string(), stats.status);
     }
 
     #[tokio::test]
@@ -227,7 +233,7 @@ mod tests {
 
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
-        assert_eq!("200 OK".to_string(), stats.status);
+        assert_eq!("200 OK, Connection: close".to_string(), stats.status);
     }
 
     #[tokio::test]
@@ -252,7 +258,10 @@ mod tests {
 
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
-        assert_eq!("500 Internal Server Error".to_string(), stats.status);
+        assert_eq!(
+            "500 Internal Server Error, Connection: close".to_string(),
+            stats.status
+        );
     }
 
     #[tokio::test]
