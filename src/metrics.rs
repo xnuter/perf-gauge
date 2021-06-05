@@ -220,7 +220,7 @@ impl fmt::Display for BenchRunReport {
                 max_value_len = max_value_len.max(value.to_string().len());
                 min_value = min_value.min(*value);
             }
-            let use_ms = min_value > 20_000;
+            let use_ms = min_value >= 1_000;
 
             for (label, value) in self.latency_summary.iter() {
                 let label_spacing = " ".repeat(max_label_len - label.len() + 1);
