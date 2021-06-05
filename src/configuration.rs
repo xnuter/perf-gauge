@@ -27,6 +27,8 @@ pub struct BenchmarkConfig {
     #[builder(default)]
     pub name: Option<String>,
     #[builder(default)]
+    pub continuous: bool,
+    #[builder(default)]
     pub verbose: bool,
     #[builder(default = "1")]
     pub concurrency: usize,
@@ -53,6 +55,7 @@ impl BenchmarkConfig {
             (@arg RATE_STEP: --rate_step +takes_value "Rate increase step (until it reaches --rate_max).")
             (@arg RATE_MAX: --rate_max +takes_value "Max rate per second. Requires --rate-step")
             (@arg MAX_RATE_ITERATIONS: --max_iter -m +takes_value "The number of iterations with the max rate. By default `1`.")
+            (@arg CONTINUOUS: --continuous "If it's a part of a continuous run. In this case metrics are not reset at the end to avoid saw-like plots.")
             (@arg PROMETHEUS_ADDR: --prometheus +takes_value "If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g. 10.0.0.1:9091")
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
             (@subcommand http =>
@@ -141,6 +144,7 @@ impl BenchmarkConfig {
             .rate_ladder(rate_ladder)
             .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
             .verbose(false)
+            .continuous(matches.is_present("CONN_REUSE"))
             .mode(BenchmarkConfig::build_mode(&matches))
             .reporters(metrics_destinations)
             .build()

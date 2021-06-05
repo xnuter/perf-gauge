@@ -72,6 +72,8 @@ USAGE:
     perf-gauge [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
+        --continuous    If it's a part of a continuous run. In this case metrics are not reset at
+                        the end to avoid saw-like plots.
     -h, --help       Prints help information
     -V, --version    Prints version information
 

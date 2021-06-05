@@ -9,7 +9,7 @@ use std::{cmp, io};
 
 pub trait ExternalMetricsServiceReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()>;
-    fn shutdown(&self);
+    fn reset_metrics(&self);
 }
 
 pub struct DefaultConsoleReporter {
@@ -263,7 +263,7 @@ impl ExternalMetricsServiceReporter for DefaultConsoleReporter {
         Ok(())
     }
 
-    fn shutdown(&self) {
+    fn reset_metrics(&self) {
         // do nothing
     }
 }

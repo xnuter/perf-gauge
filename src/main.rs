@@ -42,8 +42,10 @@ async fn main() -> io::Result<()> {
 
     info!("Starting with configuration {}", benchmark_config);
 
-    let (reporter_task, batch_metric_sender) =
-        create_async_metrics_channel(benchmark_config.reporters.clone());
+    let (reporter_task, batch_metric_sender) = create_async_metrics_channel(
+        benchmark_config.reporters.clone(),
+        benchmark_config.continuous,
+    );
     let bench_session = benchmark_config.new_bench_session();
 
     for batch in bench_session {
@@ -74,6 +76,7 @@ fn shutdown(reporter_task: JoinHandle<()>, batch_metric_sender: Sender<BenchRunM
 
 fn create_async_metrics_channel(
     metric_reporters: Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>>,
+    continuous: bool,
 ) -> (JoinHandle<()>, Sender<BenchRunMetrics>) {
     // We need to report metrics in a separate threads,
     // as at the moment of writing this code not all major metric client libraries
@@ -89,8 +92,12 @@ fn create_async_metrics_channel(
                 }
             }
         }
-        for reporter in &metric_reporters {
-            reporter.shutdown();
+        // for continuous runs we don't want to reset metrics
+        // to avoid saw-like graphs
+        if !continuous {
+            for reporter in &metric_reporters {
+                reporter.reset_metrics();
+            }
         }
     });
     (reporter_task, sender)

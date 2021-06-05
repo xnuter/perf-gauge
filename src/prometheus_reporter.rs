@@ -43,7 +43,7 @@ impl ExternalMetricsServiceReporter for PrometheusReporter {
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
 
-    fn shutdown(&self) {
+    fn reset_metrics(&self) {
         info!("Stop sending metrics to Prometheus: {}", self.address);
         // send empty metrics to reset counters
         self.report(&BenchRunMetrics::new()).unwrap_or_default();
