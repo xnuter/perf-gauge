@@ -290,8 +290,8 @@ impl DefaultConsoleReporter {
             success_rate: successful_requests as f64 * 100. / total_requests as f64,
             rate_per_second: total_requests as f64 / duration.as_secs_f64(),
             bitrate_mbps: total_bytes as f64 / duration.as_secs_f64() * 8. / 1_000_000.,
-            response_code_summary: BenchRunReport::summary_ordered(&metrics),
-            latency_summary: BenchRunReport::latency_summary(&metrics),
+            response_code_summary: BenchRunReport::summary_ordered(metrics),
+            latency_summary: BenchRunReport::latency_summary(metrics),
         }
     }
 }

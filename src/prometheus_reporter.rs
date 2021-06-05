@@ -139,7 +139,7 @@ impl PrometheusReporter {
 
         map_of_codes
             .iter()
-            .for_each(|(k, v)| codes.with_label_values(&[&k]).set((*v).into()))
+            .for_each(|(k, v)| codes.with_label_values(&[k]).set((*v).into()))
     }
 
     fn register_histogram(registry: &Registry, name: &str, help: &str, histogram: Histogram) {

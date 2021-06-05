@@ -132,11 +132,10 @@ impl HttpBenchAdapter {
             for (key, value) in self.headers.iter() {
                 headers
                     .entry(
-                        HeaderName::from_str(&key)
-                            .expect("Header name must be valid at this point"),
+                        HeaderName::from_str(key).expect("Header name must be valid at this point"),
                     )
                     .or_insert(
-                        HeaderValue::from_str(&value)
+                        HeaderValue::from_str(value)
                             .expect("Header value must be valid at this point"),
                     );
             }
