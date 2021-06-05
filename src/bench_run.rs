@@ -26,7 +26,7 @@ pub struct BenchRun {
 pub trait BenchmarkProtocolAdapter {
     type Client;
 
-    fn build_client(&self) -> Result<Self::Client, String>;
+    async fn build_client(&self) -> Result<Self::Client, String>;
     async fn send_request(&self, client: &Self::Client) -> RequestStats;
 }
 
@@ -87,7 +87,7 @@ impl BenchRun {
         bench_protocol_adapter: &impl BenchmarkProtocolAdapter,
         metrics_channel: Sender<RequestStats>,
     ) -> Result<(), String> {
-        let client = bench_protocol_adapter.build_client()?;
+        let client = bench_protocol_adapter.build_client().await?;
 
         while self.has_more_work() {
             self.rate_limiter
@@ -180,6 +180,9 @@ mod tests {
 
         assert_eq!(body.len() * request_count, stats.total_bytes);
         assert_eq!(request_count, stats.total_requests);
-        assert_eq!(stats.summary.get("200 OK"), Some(&(request_count as i32)));
+        assert_eq!(
+            stats.summary.get("200 OK, Connection: close"),
+            Some(&(request_count as i32))
+        );
     }
 }

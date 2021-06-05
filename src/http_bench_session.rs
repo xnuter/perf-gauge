@@ -44,7 +44,7 @@ pub struct HttpBenchAdapter {
 impl BenchmarkProtocolAdapter for HttpBenchAdapter {
     type Client = reqwest::Client;
 
-    fn build_client(&self) -> Result<Self::Client, String> {
+    async fn build_client(&self) -> Result<Self::Client, String> {
         let mut client_builder = reqwest::Client::builder()
             .danger_accept_invalid_certs(self.ignore_cert)
             .user_agent("perf-gauge, v0.1.0")
@@ -77,7 +77,13 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
 
         match response {
             Ok(r) => {
-                let status = r.status().to_string();
+                let mut status = r.status().to_string();
+                if let Some(connection_header) = r.headers().get("connection") {
+                    if let Ok(value) = connection_header.to_str() {
+                        status.push_str(", Connection: ");
+                        status.push_str(value);
+                    }
+                }
                 let success = r.status().is_success();
                 let mut stream = r.bytes_stream();
                 let mut total_size = 0;
@@ -187,12 +193,12 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
-        assert_eq!("200 OK".to_string(), stats.status);
+        assert_eq!("200 OK, Connection: close".to_string(), stats.status);
     }
 
     #[tokio::test]
@@ -221,12 +227,12 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
-        assert_eq!("200 OK".to_string(), stats.status);
+        assert_eq!("200 OK, Connection: close".to_string(), stats.status);
     }
 
     #[tokio::test]
@@ -246,12 +252,15 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
-        assert_eq!("500 Internal Server Error".to_string(), stats.status);
+        assert_eq!(
+            "500 Internal Server Error, Connection: close".to_string(),
+            stats.status
+        );
     }
 
     #[tokio::test]
@@ -272,7 +281,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let result = timeout(Duration::from_secs(1), http_bench.send_request(&client)).await;
 
         assert!(

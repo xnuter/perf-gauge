@@ -118,16 +118,18 @@ impl BenchBatch {
         for bench_run in self.runs.into_iter() {
             let bench_protocol_adapter = self.mode.clone();
             let metrics_channel = metrics_sender.clone();
-            concurrent_clients.push(tokio::spawn(async move {
-                bench_run
-                    .send_load(
-                        match bench_protocol_adapter.as_ref() {
-                            BenchmarkMode::Http(http_bench_session) => http_bench_session,
-                        },
-                        metrics_channel,
-                    )
-                    .await
-            }));
+            concurrent_clients.push(match bench_protocol_adapter.as_ref().clone() {
+                BenchmarkMode::Http(http_bench_session) => tokio::spawn(async move {
+                    bench_run
+                        .send_load(&http_bench_session, metrics_channel)
+                        .await
+                }),
+                BenchmarkMode::Gcs(gcs_bench_session) => tokio::spawn(async move {
+                    bench_run
+                        .send_load(&gcs_bench_session, metrics_channel)
+                        .await
+                }),
+            });
         }
 
         for t in concurrent_clients.into_iter() {
