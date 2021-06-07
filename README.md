@@ -74,8 +74,8 @@ USAGE:
 FLAGS:
         --continuous    If it's a part of a continuous run. In this case metrics are not reset at
                         the end to avoid saw-like plots.
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    -h, --help          Prints help information
+    -V, --version       Prints version information
 
 OPTIONS:
     -c, --concurrency <CONCURRENCY>          Concurrent clients. Default `1`.

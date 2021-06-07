@@ -42,7 +42,7 @@ impl BenchmarkConfig {
     pub fn from_command_line() -> io::Result<BenchmarkConfig> {
         let matches = clap_app!(myapp =>
             (name: "Performance Gauge")
-            (version: "0.1.4")
+            (version: "0.1.8")
             (author: "Eugene Retunsky")
             (about: "A tool for gauging performance of network services")
             (@arg CONCURRENCY: --concurrency -c +takes_value "Concurrent clients. Default `1`.")
@@ -60,7 +60,7 @@ impl BenchmarkConfig {
             (@arg PROMETHEUS_JOB: --prometheus_job +takes_value "Prometheus Job (by default `pushgateway`)")
             (@subcommand http =>
                 (about: "Run in HTTP(S) mode")
-                (version: "0.1.4")
+                (version: "0.1.8")
                 (@arg TUNNEL: --tunnel +takes_value "HTTP Tunnel used for connection, e.g. http://my-proxy.org")
                 (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates. Applies to the target (not proxy).")
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
@@ -144,7 +144,7 @@ impl BenchmarkConfig {
             .rate_ladder(rate_ladder)
             .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
             .verbose(false)
-            .continuous(matches.is_present("CONN_REUSE"))
+            .continuous(matches.is_present("CONTINUOUS"))
             .mode(BenchmarkConfig::build_mode(&matches))
             .reporters(metrics_destinations)
             .build()
