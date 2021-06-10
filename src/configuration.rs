@@ -8,9 +8,11 @@ use crate::bench_session::{BenchSession, BenchSessionBuilder, RateLadder, RateLa
 /// except according to those terms.
 use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
 use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
+#[cfg(report_to_prometheus)]
 use crate::prometheus_reporter::PrometheusReporter;
 use clap::{clap_app, ArgMatches};
 use core::fmt;
+#[cfg(report_to_prometheus)]
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
@@ -61,7 +63,6 @@ impl BenchmarkConfig {
             (@subcommand http =>
                 (about: "Run in HTTP(S) mode")
                 (version: "0.1.8")
-                (@arg TUNNEL: --tunnel +takes_value "HTTP Tunnel used for connection, e.g. http://my-proxy.org")
                 (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates. Applies to the target (not proxy).")
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
                 (@arg STORE_COOKIES: --store_cookies "If cookies should be stored")
@@ -122,12 +123,21 @@ impl BenchmarkConfig {
                 .expect("RateLadderBuilder failed")
         };
 
+        #[cfg(not(report_to_prometheus))]
+        let metrics_destinations: Vec<
+            Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
+        > = vec![Arc::new(Box::new(DefaultConsoleReporter::new(
+            test_case_name.clone(),
+        )))];
+
+        #[cfg(report_to_prometheus)]
         let mut metrics_destinations: Vec<
             Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
         > = vec![Arc::new(Box::new(DefaultConsoleReporter::new(
             test_case_name.clone(),
         )))];
 
+        #[cfg(report_to_prometheus)]
         if let Some(prometheus_addr) = matches.value_of("PROMETHEUS_ADDR") {
             if SocketAddr::from_str(prometheus_addr).is_err() {
                 panic!("Illegal Prometheus Gateway addr `{}`", prometheus_addr);
@@ -161,7 +171,6 @@ impl BenchmarkConfig {
                         .map(|s| s.to_string())
                         .collect(),
                 )
-                .tunnel(config.value_of("TUNNEL").map(|s| s.to_string()))
                 .ignore_cert(config.is_present("IGNORE_CERT"))
                 .conn_reuse(config.is_present("CONN_REUSE"))
                 .store_cookies(config.is_present("STORE_COOKIES"))

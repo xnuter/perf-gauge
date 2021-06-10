@@ -1,4 +1,6 @@
 use crate::bench_run::BenchmarkProtocolAdapter;
+#[cfg(tls)]
+use crate::hyper_native_tls;
 /// Copyright 2020 Developers of the perf-gauge project.
 ///
 /// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -9,10 +11,13 @@ use crate::bench_run::BenchmarkProtocolAdapter;
 use crate::metrics::{RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
 use futures_util::StreamExt;
+use hyper::client::HttpConnector;
+use hyper::header::{HeaderName, HeaderValue};
+use hyper::{Body, HeaderMap, Method, Request};
+#[cfg(tls)]
+use hyper_native_tls::NativeTlsClient;
 use log::error;
 use rand::{thread_rng, Rng};
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use reqwest::{Method, Proxy, Request};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 
@@ -20,8 +25,6 @@ use std::time::{Duration, Instant};
 #[builder(build_fn(validate = "Self::validate"))]
 pub struct HttpBenchAdapter {
     url: Vec<String>,
-    #[builder(default)]
-    tunnel: Option<String>,
     #[builder(default)]
     ignore_cert: bool,
     #[builder(default)]
@@ -42,44 +45,43 @@ pub struct HttpBenchAdapter {
 
 #[async_trait]
 impl BenchmarkProtocolAdapter for HttpBenchAdapter {
-    type Client = reqwest::Client;
+    type Client = hyper::Client<HttpConnector>;
 
     fn build_client(&self) -> Result<Self::Client, String> {
-        let mut client_builder = reqwest::Client::builder()
-            .danger_accept_invalid_certs(self.ignore_cert)
-            .user_agent("perf-gauge, v0.1.0")
-            .connection_verbose(self.verbose)
-            .tcp_nodelay(true)
-            .connect_timeout(Duration::from_secs(10));
+        #[cfg(tls)]
+        let ssl = NativeTlsClient::new().expect("Error build TLS client");
+        #[cfg(tls)]
+        let connector = HttpsConnector::new(ssl);
+        #[cfg(not(tls))]
+        let mut connector = HttpConnector::new();
+        connector.set_nodelay(true);
+        connector.set_connect_timeout(Some(Duration::from_secs(10)));
+
+        let mut client_builder = hyper::Client::builder();
 
         if self.http2_only {
-            client_builder = client_builder.http2_prior_knowledge();
+            client_builder.http2_only(true);
         }
 
         if !self.conn_reuse {
-            client_builder = client_builder.pool_max_idle_per_host(0);
+            client_builder.pool_idle_timeout(None);
         }
 
-        if let Some(tunnel) = &self.tunnel {
-            let proxy = Proxy::all(tunnel).map_err(|e| e.to_string())?;
-            client_builder = client_builder.proxy(proxy);
-        }
-
-        client_builder.build().map_err(|e| e.to_string())
+        Ok(client_builder.build(connector))
     }
 
     async fn send_request(&self, client: &Self::Client) -> RequestStats {
         let start = Instant::now();
 
-        let request = self.build_request(client);
+        let request = self.build_request();
 
-        let response = client.execute(request).await;
+        let response = client.request(request).await;
 
         match response {
             Ok(r) => {
                 let status = r.status().to_string();
                 let success = r.status().is_success();
-                let mut stream = r.bytes_stream();
+                let mut stream = r.into_body();
                 let mut total_size = 0;
                 while let Some(item) = stream.next().await {
                     if let Ok(bytes) = item {
@@ -98,10 +100,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
             }
             Err(e) => {
                 error!("Error sending request: {}", e);
-                let status = match e.status() {
-                    None => e.to_string(),
-                    Some(code) => code.to_string(),
-                };
+                let status = e.to_string();
                 RequestStatsBuilder::default()
                     .bytes_processed(0)
                     .status(status)
@@ -115,17 +114,13 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
 }
 
 impl HttpBenchAdapter {
-    fn build_request(
-        &self,
-        client: &<HttpBenchAdapter as BenchmarkProtocolAdapter>::Client,
-    ) -> Request {
+    fn build_request(&self) -> Request<Body> {
         let method =
             Method::from_str(&self.method.clone()).expect("Method must be valid at this point");
 
-        let mut request_builder = client.request(
-            method,
-            &self.url[thread_rng().gen_range(0..self.url.len())].clone(),
-        );
+        let mut request_builder = Request::builder()
+            .method(method)
+            .uri(&self.url[thread_rng().gen_range(0..self.url.len())].clone());
 
         if !self.headers.is_empty() {
             let mut headers = HeaderMap::new();
@@ -139,14 +134,18 @@ impl HttpBenchAdapter {
                             .expect("Header value must be valid at this point"),
                     );
             }
-            request_builder = request_builder.headers(headers);
+            request_builder.headers_mut().get_or_insert(&mut headers);
         }
 
         if !self.body.is_empty() {
-            request_builder = request_builder.body(self.body.clone());
+            request_builder
+                .body(Body::from(self.body.clone()))
+                .expect("Error building Request")
+        } else {
+            request_builder
+                .body(Body::empty())
+                .expect("Error building Request")
         }
-
-        request_builder.build().expect("Illegal request")
     }
 }
 
