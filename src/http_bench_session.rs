@@ -1,6 +1,4 @@
 use crate::bench_run::BenchmarkProtocolAdapter;
-#[cfg(tls)]
-use crate::hyper_native_tls;
 /// Copyright 2020 Developers of the perf-gauge project.
 ///
 /// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -13,9 +11,9 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use hyper::client::HttpConnector;
 use hyper::header::{HeaderName, HeaderValue};
-use hyper::{Body, HeaderMap, Method, Request};
-#[cfg(tls)]
-use hyper_native_tls::NativeTlsClient;
+use hyper::{Body, Method, Request};
+#[cfg(feature = "tls")]
+use hyper_tls::HttpsConnector;
 use log::error;
 use rand::{thread_rng, Rng};
 use std::str::FromStr;
@@ -45,17 +43,19 @@ pub struct HttpBenchAdapter {
 
 #[async_trait]
 impl BenchmarkProtocolAdapter for HttpBenchAdapter {
+    #[cfg(feature = "tls")]
+    type Client = hyper::Client<HttpsConnector<HttpConnector>>;
+    #[cfg(not(feature = "tls"))]
     type Client = hyper::Client<HttpConnector>;
 
     fn build_client(&self) -> Result<Self::Client, String> {
-        #[cfg(tls)]
-        let ssl = NativeTlsClient::new().expect("Error build TLS client");
-        #[cfg(tls)]
-        let connector = HttpsConnector::new(ssl);
-        #[cfg(not(tls))]
         let mut connector = HttpConnector::new();
-        connector.set_nodelay(true);
         connector.set_connect_timeout(Some(Duration::from_secs(10)));
+        connector.set_nodelay(true);
+        #[cfg(feature = "tls")]
+        connector.enforce_http(false);
+        #[cfg(feature = "tls")]
+        let connector = HttpsConnector::new_with_connector(connector);
 
         let mut client_builder = hyper::Client::builder();
 
@@ -123,18 +123,12 @@ impl HttpBenchAdapter {
             .uri(&self.url[thread_rng().gen_range(0..self.url.len())].clone());
 
         if !self.headers.is_empty() {
-            let mut headers = HeaderMap::new();
             for (key, value) in self.headers.iter() {
-                headers
-                    .entry(
-                        HeaderName::from_str(key).expect("Header name must be valid at this point"),
-                    )
-                    .or_insert(
-                        HeaderValue::from_str(value)
-                            .expect("Header value must be valid at this point"),
-                    );
+                request_builder = request_builder.header(
+                    HeaderName::from_str(key).expect("Header name must be valid at this point"),
+                    HeaderValue::from_str(value).expect("Header value must be valid at this point"),
+                );
             }
-            request_builder.headers_mut().get_or_insert(&mut headers);
         }
 
         if !self.body.is_empty() {
@@ -176,6 +170,8 @@ mod tests {
         let _m = mock("GET", "/1")
             .with_status(200)
             .with_header("content-type", "text/plain")
+            .match_header("x-header", "value1")
+            .match_header("x-another-header", "value2")
             .with_body(body)
             .create();
 
@@ -183,6 +179,10 @@ mod tests {
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
             .url(vec![format!("{}/1", url)])
+            .headers(vec![
+                ("x-header".to_string(), "value1".to_string()),
+                ("x-another-header".to_string(), "value2".to_string()),
+            ])
             .build()
             .unwrap();
 
@@ -212,6 +212,40 @@ mod tests {
         let http_bench = HttpBenchAdapterBuilder::default()
             .url(vec![format!("{}/1", url)])
             .method("PUT".to_string())
+            .headers(vec![
+                ("x-header".to_string(), "value1".to_string()),
+                ("x-another-header".to_string(), "value2".to_string()),
+            ])
+            .body("abcd".as_bytes().to_vec())
+            .build()
+            .unwrap();
+
+        let client = http_bench.build_client().expect("Client is built");
+        let stats = http_bench.send_request(&client).await;
+
+        println!("{:?}", stats);
+        assert_eq!(body.len(), stats.bytes_processed);
+        assert_eq!("200 OK".to_string(), stats.status);
+    }
+
+    #[tokio::test]
+    async fn test_success_post_request() {
+        let body = "world";
+
+        let _m = mock("POST", "/1")
+            .match_header("x-header", "value1")
+            .match_header("x-another-header", "value2")
+            .match_body(Exact("abcd".to_string()))
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body(body)
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+        let http_bench = HttpBenchAdapterBuilder::default()
+            .url(vec![format!("{}/1", url)])
+            .method("POST".to_string())
             .headers(vec![
                 ("x-header".to_string(), "value1".to_string()),
                 ("x-another-header".to_string(), "value2".to_string()),

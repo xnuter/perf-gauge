@@ -35,7 +35,7 @@ rand = "0.8"
 futures-util = "0.3"
 hyper = { version = "0.14", features = ["full"] }
 prometheus = { version = "0.11", features = ["push"], default-features = false, optional = true }
-hyper-native-tls = {version = "0.3", default-features = false, optional = true }
+hyper-tls = {version = "0.5", default-features = false, optional = true }
 
 [dev-dependencies]
 mockito = "0.28"
@@ -44,4 +44,4 @@ tokio-test = "0.4"
 [features]
 default = []
 report_to_prometheus = ["prometheus"]
-tls = ["hyper-native-tls"]
+tls = ["hyper-tls"]

@@ -8,11 +8,11 @@ use crate::bench_session::{BenchSession, BenchSessionBuilder, RateLadder, RateLa
 /// except according to those terms.
 use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
 use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
-#[cfg(report_to_prometheus)]
+#[cfg(feature = "report_to_prometheus")]
 use crate::prometheus_reporter::PrometheusReporter;
 use clap::{clap_app, ArgMatches};
 use core::fmt;
-#[cfg(report_to_prometheus)]
+#[cfg(feature = "report_to_prometheus")]
 use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
@@ -130,14 +130,14 @@ impl BenchmarkConfig {
             test_case_name.clone(),
         )))];
 
-        #[cfg(report_to_prometheus)]
+        #[cfg(feature = "report_to_prometheus")]
         let mut metrics_destinations: Vec<
             Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
         > = vec![Arc::new(Box::new(DefaultConsoleReporter::new(
             test_case_name.clone(),
         )))];
 
-        #[cfg(report_to_prometheus)]
+        #[cfg(feature = "report_to_prometheus")]
         if let Some(prometheus_addr) = matches.value_of("PROMETHEUS_ADDR") {
             if SocketAddr::from_str(prometheus_addr).is_err() {
                 panic!("Illegal Prometheus Gateway addr `{}`", prometheus_addr);
