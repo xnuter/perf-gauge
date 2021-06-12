@@ -63,7 +63,7 @@ Supported features:
 
 * `default` - if no features specified, only `http` traffic is supported
 * `tls-native` - TLS support (based on `OpenSSL`)
-* `tls-boring` - TLS support (based on `BoringSSL`)
+* `tls-boring` - TLS support (based on `BoringSSL`). Doesn't support self-signed certs.
 * `report-to-prometheus` - to support `Prometheus` for metric collection
 * `full` - `report-to-prometheus` + `tls-native`
 * `full-boring` - `report-to-prometheus` + `tls-boring`
@@ -92,7 +92,7 @@ OPTIONS:
     -m, --max_iter <MAX_RATE_ITERATIONS>
             The number of iterations with the max rate. By default `1`.
 
-    -n, --num_req <NUMBER_OF_REQUESTS>       Number of requests.
+    -n, --num_req <NUMBER_OF_REQUESTS>       Number of requests per client.
         --prometheus <PROMETHEUS_ADDR>
             If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g.
             10.0.0.1:9091

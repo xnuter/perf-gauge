@@ -45,7 +45,7 @@ impl BenchmarkConfig {
             (about: "A tool for gauging performance of network services")
             (@arg CONCURRENCY: --concurrency -c +takes_value "Concurrent clients. Default `1`.")
             (@group duration =>
-                (@arg NUMBER_OF_REQUESTS: --num_req -n +takes_value "Number of requests.")
+                (@arg NUMBER_OF_REQUESTS: --num_req -n +takes_value "Number of requests per client.")
                 (@arg DURATION: --duration -d +takes_value "Duration of the test.")
             )
             (@arg TEST_CASE_NAME: --name -N +takes_value "Test case name. Optional. Can be used for tagging metrics.")
