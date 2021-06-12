@@ -15,7 +15,7 @@ mod bench_session;
 mod configuration;
 mod http_bench_session;
 mod metrics;
-#[cfg(feature = "report_to_prometheus")]
+#[cfg(feature = "report-to-prometheus")]
 mod prometheus_reporter;
 mod rate_limiter;
 

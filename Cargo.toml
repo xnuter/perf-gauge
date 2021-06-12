@@ -47,9 +47,9 @@ tokio-test = "0.4"
 
 [features]
 default = []
-report_to_prometheus = ["prometheus"]
+report-to-prometheus = ["prometheus"]
 tls = ["hyper-tls"]
 tls-native = ["tls", "native-tls", "tokio-native-tls"]
 tls-boring = ["tls", "hyper-boring", "boring"]
-full = ["report_to_prometheus", "tls-native"]
-full-boring = ["report_to_prometheus", "tls-boring"]
+full = ["report-to-prometheus", "tls-native"]
+full-boring = ["report-to-prometheus", "tls-boring"]

@@ -133,7 +133,7 @@ impl BenchmarkConfig {
             .expect("BenchmarkConfig failed"))
     }
 
-    #[cfg(not(feature = "report_to_prometheus"))]
+    #[cfg(not(feature = "report-to-prometheus"))]
     fn build_metric_destinations(
         test_case_name: Option<String>,
         matches: ArgMatches,
@@ -148,7 +148,7 @@ impl BenchmarkConfig {
         )))]
     }
 
-    #[cfg(feature = "report_to_prometheus")]
+    #[cfg(feature = "report-to-prometheus")]
     fn build_metric_destinations(
         test_case_name: Option<String>,
         matches: ArgMatches,

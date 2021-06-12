@@ -56,8 +56,17 @@ sudo yum install pkg-config openssl-devel
 
 Then:
 ```
-$ cargo install perf-gauage
+$ cargo install perf-gauage --features full
 ```
+
+Supported features:
+
+* `default` - if no features specified, only `http` traffic is supported
+* `tls-native` - TLS support (based on `OpenSSL`)
+* `tls-boring` - TLS support (based on `BoringSSL`)
+* `report-to-prometheus` - to support `Prometheus` for metric collection
+* `full` - `report-to-prometheus` + `tls-native`
+* `full-boring` - `report-to-prometheus` + `tls-boring`
 
 Usage
 =======
