@@ -35,8 +35,6 @@ pub struct HttpBenchAdapter {
     #[builder(default)]
     conn_reuse: bool,
     #[builder(default)]
-    store_cookies: bool,
-    #[builder(default)]
     verbose: bool,
     #[builder(default)]
     http2_only: bool,
