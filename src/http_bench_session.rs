@@ -108,7 +108,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
         }
 
         if !self.conn_reuse {
-            client_builder.pool_idle_timeout(None);
+            client_builder.pool_max_idle_per_host(0);
         }
 
         Ok(client_builder.build(self.build_connector()))
