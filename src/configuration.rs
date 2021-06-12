@@ -8,12 +8,8 @@ use crate::bench_session::{BenchSession, BenchSessionBuilder, RateLadder, RateLa
 /// except according to those terms.
 use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
 use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
-#[cfg(feature = "report_to_prometheus")]
-use crate::prometheus_reporter::PrometheusReporter;
 use clap::{clap_app, ArgMatches};
 use core::fmt;
-#[cfg(feature = "report_to_prometheus")]
-use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -63,7 +59,7 @@ impl BenchmarkConfig {
             (@subcommand http =>
                 (about: "Run in HTTP(S) mode")
                 (version: "0.1.8")
-                (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates. Applies to the target (not proxy).")
+                (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates.")
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
                 (@arg STORE_COOKIES: --store_cookies "If cookies should be stored")
                 (@arg HTTP2_ONLY: --http2_only "Enforce HTTP/2 only")
@@ -123,21 +119,50 @@ impl BenchmarkConfig {
                 .expect("RateLadderBuilder failed")
         };
 
-        #[cfg(not(report_to_prometheus))]
-        let metrics_destinations: Vec<
-            Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
-        > = vec![Arc::new(Box::new(DefaultConsoleReporter::new(
-            test_case_name.clone(),
-        )))];
+        Ok(BenchmarkConfigBuilder::default()
+            .name(test_case_name.clone())
+            .rate_ladder(rate_ladder)
+            .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
+            .verbose(false)
+            .continuous(matches.is_present("CONTINUOUS"))
+            .mode(BenchmarkConfig::build_mode(&matches))
+            .reporters(BenchmarkConfig::build_metric_destinations(
+                test_case_name,
+                matches,
+            ))
+            .build()
+            .expect("BenchmarkConfig failed"))
+    }
 
-        #[cfg(feature = "report_to_prometheus")]
+    #[cfg(not(feature = "report_to_prometheus"))]
+    fn build_metric_destinations(
+        test_case_name: Option<String>,
+        matches: ArgMatches,
+    ) -> Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync>>> {
+        if matches.value_of("PROMETHEUS_ADDR").is_some() {
+            println!("Prometheus is not supported in this configuration");
+            exit(-1);
+        }
+
+        vec![Arc::new(Box::new(DefaultConsoleReporter::new(
+            test_case_name.clone(),
+        )))]
+    }
+
+    #[cfg(feature = "report_to_prometheus")]
+    fn build_metric_destinations(
+        test_case_name: Option<String>,
+        matches: ArgMatches,
+    ) -> Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync>>> {
+        use crate::prometheus_reporter::PrometheusReporter;
+        use std::net::SocketAddr;
+
         let mut metrics_destinations: Vec<
             Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
         > = vec![Arc::new(Box::new(DefaultConsoleReporter::new(
             test_case_name.clone(),
         )))];
 
-        #[cfg(feature = "report_to_prometheus")]
         if let Some(prometheus_addr) = matches.value_of("PROMETHEUS_ADDR") {
             if SocketAddr::from_str(prometheus_addr).is_err() {
                 panic!("Illegal Prometheus Gateway addr `{}`", prometheus_addr);
@@ -149,20 +174,17 @@ impl BenchmarkConfig {
             ))));
         }
 
-        Ok(BenchmarkConfigBuilder::default()
-            .name(test_case_name)
-            .rate_ladder(rate_ladder)
-            .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
-            .verbose(false)
-            .continuous(matches.is_present("CONTINUOUS"))
-            .mode(BenchmarkConfig::build_mode(&matches))
-            .reporters(metrics_destinations)
-            .build()
-            .expect("BenchmarkConfig failed"))
+        metrics_destinations
     }
 
     fn build_mode(matches: &ArgMatches) -> BenchmarkMode {
         let mode = if let Some(config) = matches.subcommand_matches("http") {
+            #[cfg(all(feature = "tls", feature = "tls-boring"))]
+            if config.is_present("IGNORE_CERT") {
+                println!("--ignore_cert is not supported for BoringSSL");
+                exit(-1);
+            }
+
             let http_config = HttpBenchAdapterBuilder::default()
                 .url(
                     config

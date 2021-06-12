@@ -8,16 +8,23 @@ use crate::bench_run::BenchmarkProtocolAdapter;
 /// except according to those terms.
 use crate::metrics::{RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
+#[cfg(all(feature = "tls", feature = "tls-boring"))]
+use boring::ssl::{SslConnector, SslMethod};
 use futures_util::StreamExt;
 use hyper::client::HttpConnector;
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::{Body, Method, Request};
-#[cfg(feature = "tls")]
+#[cfg(all(feature = "tls", feature = "tls-boring"))]
+use hyper_boring::HttpsConnector;
+#[cfg(all(feature = "tls", feature = "tls-native"))]
 use hyper_tls::HttpsConnector;
 use log::error;
 use rand::{thread_rng, Rng};
 use std::str::FromStr;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use std::time::Instant;
+#[cfg(all(feature = "tls", feature = "tls-native"))]
+use tokio_native_tls::TlsConnector;
 
 #[derive(Builder, Deserialize, Clone, Debug)]
 #[builder(build_fn(validate = "Self::validate"))]
@@ -41,22 +48,59 @@ pub struct HttpBenchAdapter {
     body: Vec<u8>,
 }
 
-#[async_trait]
-impl BenchmarkProtocolAdapter for HttpBenchAdapter {
-    #[cfg(feature = "tls")]
-    type Client = hyper::Client<HttpsConnector<HttpConnector>>;
-    #[cfg(not(feature = "tls"))]
-    type Client = hyper::Client<HttpConnector>;
+#[cfg(feature = "tls")]
+type ProtocolConnector = HttpsConnector<HttpConnector>;
+#[cfg(not(feature = "tls"))]
+type ProtocolConnector = HttpConnector;
 
-    fn build_client(&self) -> Result<Self::Client, String> {
+impl HttpBenchAdapter {
+    #[cfg(not(feature = "tls"))]
+    fn build_connector(&self) -> ProtocolConnector {
+        self.build_http_connector()
+    }
+
+    #[cfg(all(feature = "tls", feature = "tls-native"))]
+    fn build_connector(&self) -> ProtocolConnector {
+        HttpsConnector::from((self.build_http_connector(), self.build_tls_connector()))
+    }
+
+    #[cfg(all(feature = "tls", feature = "tls-boring"))]
+    fn build_connector(&self) -> ProtocolConnector {
+        let builder =
+            SslConnector::builder(SslMethod::tls()).expect("Cannot build BoringSSL builder");
+        hyper_boring::HttpsConnector::with_connector(self.build_http_connector(), builder)
+            .expect("Cannot build Boring HttpsConnector")
+    }
+
+    #[cfg(all(feature = "tls", feature = "tls-native"))]
+    fn build_tls_connector(&self) -> TlsConnector {
+        let mut native_tls_builder = native_tls::TlsConnector::builder();
+        if self.ignore_cert {
+            native_tls_builder.danger_accept_invalid_certs(true);
+        }
+
+        TlsConnector::from(
+            native_tls_builder
+                .build()
+                .expect("Cannot build TlsConnector"),
+        )
+    }
+
+    fn build_http_connector(&self) -> HttpConnector {
         let mut connector = HttpConnector::new();
         connector.set_connect_timeout(Some(Duration::from_secs(10)));
         connector.set_nodelay(true);
         #[cfg(feature = "tls")]
         connector.enforce_http(false);
-        #[cfg(feature = "tls")]
-        let connector = HttpsConnector::new_with_connector(connector);
+        connector
+    }
+}
 
+#[async_trait]
+impl BenchmarkProtocolAdapter for HttpBenchAdapter {
+    type Client = hyper::Client<ProtocolConnector>;
+
+    fn build_client(&self) -> Result<Self::Client, String> {
         let mut client_builder = hyper::Client::builder();
 
         if self.http2_only {
@@ -67,7 +111,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
             client_builder.pool_idle_timeout(None);
         }
 
-        Ok(client_builder.build(connector))
+        Ok(client_builder.build(self.build_connector()))
     }
 
     async fn send_request(&self, client: &Self::Client) -> RequestStats {

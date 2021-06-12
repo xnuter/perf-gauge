@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --verbose --features full
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --verbose  --features full
  
