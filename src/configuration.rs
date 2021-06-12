@@ -8,10 +8,8 @@ use crate::bench_session::{BenchSession, BenchSessionBuilder, RateLadder, RateLa
 /// except according to those terms.
 use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
 use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
-use crate::prometheus_reporter::PrometheusReporter;
 use clap::{clap_app, ArgMatches};
 use core::fmt;
-use std::net::SocketAddr;
 use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -61,10 +59,8 @@ impl BenchmarkConfig {
             (@subcommand http =>
                 (about: "Run in HTTP(S) mode")
                 (version: "0.1.8")
-                (@arg TUNNEL: --tunnel +takes_value "HTTP Tunnel used for connection, e.g. http://my-proxy.org")
-                (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates. Applies to the target (not proxy).")
+                (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates.")
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
-                (@arg STORE_COOKIES: --store_cookies "If cookies should be stored")
                 (@arg HTTP2_ONLY: --http2_only "Enforce HTTP/2 only")
                 (@arg TARGET: +required ... "Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with random choice balancing)")
                 (@arg METHOD: --method -M +takes_value "Method. By default GET")
@@ -122,6 +118,44 @@ impl BenchmarkConfig {
                 .expect("RateLadderBuilder failed")
         };
 
+        Ok(BenchmarkConfigBuilder::default()
+            .name(test_case_name.clone())
+            .rate_ladder(rate_ladder)
+            .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
+            .verbose(false)
+            .continuous(matches.is_present("CONTINUOUS"))
+            .mode(BenchmarkConfig::build_mode(&matches))
+            .reporters(BenchmarkConfig::build_metric_destinations(
+                test_case_name,
+                matches,
+            ))
+            .build()
+            .expect("BenchmarkConfig failed"))
+    }
+
+    #[cfg(not(feature = "report-to-prometheus"))]
+    fn build_metric_destinations(
+        test_case_name: Option<String>,
+        matches: ArgMatches,
+    ) -> Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync>>> {
+        if matches.value_of("PROMETHEUS_ADDR").is_some() {
+            println!("Prometheus is not supported in this configuration");
+            exit(-1);
+        }
+
+        vec![Arc::new(Box::new(DefaultConsoleReporter::new(
+            test_case_name,
+        )))]
+    }
+
+    #[cfg(feature = "report-to-prometheus")]
+    fn build_metric_destinations(
+        test_case_name: Option<String>,
+        matches: ArgMatches,
+    ) -> Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync>>> {
+        use crate::prometheus_reporter::PrometheusReporter;
+        use std::net::SocketAddr;
+
         let mut metrics_destinations: Vec<
             Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
         > = vec![Arc::new(Box::new(DefaultConsoleReporter::new(
@@ -139,20 +173,17 @@ impl BenchmarkConfig {
             ))));
         }
 
-        Ok(BenchmarkConfigBuilder::default()
-            .name(test_case_name)
-            .rate_ladder(rate_ladder)
-            .concurrency(parse_num(concurrency, "Cannot parse CONCURRENCY"))
-            .verbose(false)
-            .continuous(matches.is_present("CONTINUOUS"))
-            .mode(BenchmarkConfig::build_mode(&matches))
-            .reporters(metrics_destinations)
-            .build()
-            .expect("BenchmarkConfig failed"))
+        metrics_destinations
     }
 
     fn build_mode(matches: &ArgMatches) -> BenchmarkMode {
         let mode = if let Some(config) = matches.subcommand_matches("http") {
+            #[cfg(feature = "tls-boring")]
+            if config.is_present("IGNORE_CERT") {
+                println!("--ignore_cert is not supported for BoringSSL");
+                exit(-1);
+            }
+
             let http_config = HttpBenchAdapterBuilder::default()
                 .url(
                     config
@@ -161,10 +192,8 @@ impl BenchmarkConfig {
                         .map(|s| s.to_string())
                         .collect(),
                 )
-                .tunnel(config.value_of("TUNNEL").map(|s| s.to_string()))
                 .ignore_cert(config.is_present("IGNORE_CERT"))
                 .conn_reuse(config.is_present("CONN_REUSE"))
-                .store_cookies(config.is_present("STORE_COOKIES"))
                 .http2_only(config.is_present("HTTP2_ONLY"))
                 .method(config.value_of("METHOD").unwrap_or("GET").to_string())
                 .headers(BenchmarkConfig::get_multiple_values(config, "HEADER"))

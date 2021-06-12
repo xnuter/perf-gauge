@@ -56,8 +56,17 @@ sudo yum install pkg-config openssl-devel
 
 Then:
 ```
-$ cargo install perf-gauage
+$ cargo install perf-gauage --features full
 ```
+
+Supported features:
+
+* `default` - if no features specified, only `http` traffic is supported
+* `tls-native` - TLS support (based on `OpenSSL`)
+* `tls-boring` - TLS support (based on `BoringSSL`)
+* `report-to-prometheus` - to support `Prometheus` for metric collection
+* `full` - `report-to-prometheus` + `tls-native`
+* `full-boring` - `report-to-prometheus` + `tls-boring`
 
 Usage
 =======
@@ -122,7 +131,6 @@ FLAGS:
         --conn_reuse       If connections should be re-used
         --http2_only       Enforce HTTP/2 only
         --ignore_cert      Allow self signed certificates. Applies to the target (not proxy).
-        --store_cookies    If cookies should be stored
     -h, --help             Prints help information
     -V, --version          Prints version information
 
@@ -130,21 +138,20 @@ OPTIONS:
     -B, --body <BODY>           Body of the request in base64. Optional.
     -H, --header <HEADER>...    Headers in "Name:Value" form. Can be provided multiple times.
     -M, --method <METHOD>       Method. By default GET
-        --tunnel <TUNNEL>       HTTP Tunnel used for connection, e.g. http://my-proxy.org
 ```
 
 For example, test an endpoint using a single run, 5 seconds (max possible request rate):
 
 ```bash
 $ perf-gauge --concurrency 10 \
-               --duration 10s \
+               --duration 1m \
                http http://localhost/10kb --conn_reuse
 ```
   
 Parameters:
 
 * `--concurrency 10` - the number of clients generating load concurrently
-* `--duration 60s` - step duration `60s`
+* `--duration 1m` - step duration `1m` (or `10s`, `5m`, etc.)
 * `http http://local-nginx.org/10kb --conn_reuse` - run in `http` mode to the given endpoint, reusing connections. 
 
 Reporting performance metrics to Prometheus
@@ -160,7 +167,7 @@ export PROMETHEUS_HOST=10.138.0.2
 $ perf-gauge --concurrency 10 \
                --rate 1000 --rate_step 1000 --rate_max 25000 \
                --max_iter 15 \
-               --duration 60s \
+               --duration 1m \
                --name nginx-direct \
                --prometheus $PROMETHEUS_HOST:9091 \
                http https://localhost/10kb --conn_reuse --ignore_cert
@@ -168,7 +175,7 @@ $ perf-gauge --concurrency 10 \
 
 * `--concurrency 10` - the number of clients generating load concurrently
 * `--rate 1000 --rate_step 1000 --rate_max 25000` - start with rate 1000 rps, then add 1000 rps after each step until it reaches 25k.
-* `--duration 60s` - step duration `60s`
+* `--duration 1m` - step duration `1m`
 * `--max_iter 15` - perform `15` iterations at the max rate
 * `--name nginx-direct` - the name of the test (used for reporting metrics to `prometheus`)
 * `--prometheus $PROMETHEUS_HOST:9091` - push-gateway `host:port` to send metrics to Prometheus.
