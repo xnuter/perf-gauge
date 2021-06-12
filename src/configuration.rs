@@ -179,7 +179,7 @@ impl BenchmarkConfig {
 
     fn build_mode(matches: &ArgMatches) -> BenchmarkMode {
         let mode = if let Some(config) = matches.subcommand_matches("http") {
-            #[cfg(all(feature = "tls", feature = "tls-boring"))]
+            #[cfg(feature = "tls-boring")]
             if config.is_present("IGNORE_CERT") {
                 println!("--ignore_cert is not supported for BoringSSL");
                 exit(-1);

@@ -14,5 +14,9 @@ jobs:
     - name: Build
       run: cargo build --verbose --features full
     - name: Run tests
-      run: cargo test --verbose  --features full
- 
+      run: cargo test --verbose
+    - name: Run tests full
+      run: cargo test --verbose --features full
+    - name: Run tests tls
+      run: cargo test --verbose --features tls-native
+

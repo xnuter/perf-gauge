@@ -1,6 +1,6 @@
 [package]
 name = "perf-gauge"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["Eugene Retunsky"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -49,7 +49,7 @@ tokio-test = "0.4"
 default = []
 report_to_prometheus = ["prometheus"]
 tls = ["hyper-tls"]
-tls-native = ["native-tls", "tokio-native-tls"]
-tls-boring = ["hyper-boring", "boring"]
-full = ["report_to_prometheus", "tls", "tls-native"]
-full-boring = ["report_to_prometheus", "tls", "tls-boring"]
+tls-native = ["tls", "native-tls", "tokio-native-tls"]
+tls-boring = ["tls", "hyper-boring", "boring"]
+full = ["report_to_prometheus", "tls-native"]
+full-boring = ["report_to_prometheus", "tls-boring"]
