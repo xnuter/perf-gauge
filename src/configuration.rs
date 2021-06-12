@@ -145,7 +145,7 @@ impl BenchmarkConfig {
         }
 
         vec![Arc::new(Box::new(DefaultConsoleReporter::new(
-            test_case_name.clone(),
+            test_case_name,
         )))]
     }
 
