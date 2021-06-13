@@ -99,24 +99,15 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
     type Client = hyper::Client<ProtocolConnector>;
 
     fn build_client(&self) -> Result<Self::Client, String> {
-        let mut client_builder = hyper::Client::builder();
-
-        if self.http2_only {
-            client_builder.http2_only(true);
-        }
-
-        if !self.conn_reuse {
-            client_builder.pool_max_idle_per_host(0);
-        }
-
-        Ok(client_builder.build(self.build_connector()))
+        Ok(hyper::Client::builder()
+            .http2_only(self.http2_only)
+            .pool_max_idle_per_host(if !self.conn_reuse { 0 } else { usize::MAX })
+            .build(self.build_connector()))
     }
 
     async fn send_request(&self, client: &Self::Client) -> RequestStats {
         let start = Instant::now();
-
         let request = self.build_request();
-
         let response = client.request(request).await;
 
         match response {
