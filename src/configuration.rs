@@ -225,7 +225,7 @@ impl BenchmarkConfig {
             } else if body_value.starts_with(FILE_PREFIX) {
                 BenchmarkConfig::read_file_as_vec(&body_value[FILE_PREFIX.len()..])
             } else {
-                panic!(format!("Unsupported format: {}", body_value));
+                panic!("Unsupported format: {}", body_value);
             }
         } else {
             Vec::new()
