@@ -43,10 +43,8 @@ async fn main() -> io::Result<()> {
 
     info!("Starting with configuration {}", benchmark_config);
 
-    let (reporter_task, batch_metric_sender) = create_async_metrics_channel(
-        benchmark_config.reporters.clone(),
-        benchmark_config.continuous,
-    );
+    let (reporter_task, batch_metric_sender) =
+        create_async_metrics_channel(&benchmark_config.reporters, benchmark_config.continuous);
     let bench_session = benchmark_config.new_bench_session();
 
     for batch in bench_session {
@@ -76,7 +74,7 @@ fn shutdown(reporter_task: JoinHandle<()>, batch_metric_sender: Sender<BenchRunM
 }
 
 fn create_async_metrics_channel(
-    metric_reporters: Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>>,
+    metric_reporters: &[Arc<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>],
     continuous: bool,
 ) -> (JoinHandle<()>, Sender<BenchRunMetrics>) {
     // We need to report metrics in a separate threads,
@@ -84,6 +82,7 @@ fn create_async_metrics_channel(
     // had `async` APIs.
     // We can replace it with `tokio::sync::mpsc` and `tokio::spawn` at any time
     let (sender, receiver) = std::sync::mpsc::channel();
+    let metric_reporters = metric_reporters.to_owned();
     let reporter_task = thread::spawn(move || {
         while let Ok(stats) = receiver.recv() {
             // broadcast to all metrics reporters
@@ -96,7 +95,7 @@ fn create_async_metrics_channel(
         // for continuous runs we don't want to reset metrics
         // to avoid saw-like graphs
         if !continuous {
-            for reporter in &metric_reporters {
+            for reporter in metric_reporters {
                 reporter.reset_metrics();
             }
         }

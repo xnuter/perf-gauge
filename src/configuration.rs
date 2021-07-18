@@ -37,7 +37,7 @@ pub struct BenchmarkConfig {
     pub rate_ladder: RateLadder,
     pub mode: BenchmarkMode,
     #[builder(default)]
-    pub reporters: Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>>,
+    pub reporters: Vec<Arc<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
 }
 
 impl BenchmarkConfig {
@@ -141,40 +141,38 @@ impl BenchmarkConfig {
     fn build_metric_destinations(
         test_case_name: Option<String>,
         matches: ArgMatches,
-    ) -> Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync>>> {
+    ) -> Vec<Arc<dyn ExternalMetricsServiceReporter + Send + Sync>> {
         if matches.value_of("PROMETHEUS_ADDR").is_some() {
             println!("Prometheus is not supported in this configuration");
             exit(-1);
         }
 
-        vec![Arc::new(Box::new(DefaultConsoleReporter::new(
-            test_case_name,
-        )))]
+        vec![Arc::new(DefaultConsoleReporter::new(test_case_name))]
     }
 
     #[cfg(feature = "report-to-prometheus")]
     fn build_metric_destinations(
         test_case_name: Option<String>,
         matches: ArgMatches,
-    ) -> Vec<Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync>>> {
+    ) -> Vec<Arc<dyn ExternalMetricsServiceReporter + Send + Sync>> {
         use crate::prometheus_reporter::PrometheusReporter;
         use std::net::SocketAddr;
 
         let mut metrics_destinations: Vec<
-            Arc<Box<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
-        > = vec![Arc::new(Box::new(DefaultConsoleReporter::new(
+            Arc<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>,
+        > = vec![Arc::new(DefaultConsoleReporter::new(
             test_case_name.clone(),
-        )))];
+        ))];
 
         if let Some(prometheus_addr) = matches.value_of("PROMETHEUS_ADDR") {
             if SocketAddr::from_str(prometheus_addr).is_err() {
                 panic!("Illegal Prometheus Gateway addr `{}`", prometheus_addr);
             }
-            metrics_destinations.push(Arc::new(Box::new(PrometheusReporter::new(
+            metrics_destinations.push(Arc::new(PrometheusReporter::new(
                 test_case_name.clone(),
                 prometheus_addr.to_string(),
                 matches.value_of("PROMETHEUS_JOB"),
-            ))));
+            )));
         }
 
         metrics_destinations
@@ -218,12 +216,12 @@ impl BenchmarkConfig {
         const FILE_PREFIX: &str = "file://";
 
         if let Some(body_value) = config.value_of("BODY") {
-            if body_value.starts_with(RANDOM_PREFIX) {
-                BenchmarkConfig::generate_random_vec(&body_value[RANDOM_PREFIX.len()..])
-            } else if body_value.starts_with(BASE64_PREFIX) {
-                base64::decode(&body_value[BASE64_PREFIX.len()..]).expect("Invalid base64")
-            } else if body_value.starts_with(FILE_PREFIX) {
-                BenchmarkConfig::read_file_as_vec(&body_value[FILE_PREFIX.len()..])
+            if let Some(body_size) = body_value.strip_prefix(RANDOM_PREFIX) {
+                BenchmarkConfig::generate_random_vec(body_size)
+            } else if let Some(base64) = body_value.strip_prefix(BASE64_PREFIX) {
+                base64::decode(base64).expect("Invalid base64")
+            } else if let Some(filename) = body_value.strip_prefix(FILE_PREFIX) {
+                BenchmarkConfig::read_file_as_vec(filename)
             } else {
                 panic!("Unsupported format: {}", body_value);
             }
