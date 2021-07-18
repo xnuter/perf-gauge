@@ -10,6 +10,10 @@ use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
 use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
 use clap::{clap_app, ArgMatches};
 use core::fmt;
+use rand::Rng;
+use std::fs;
+use std::fs::File;
+use std::io::Read;
 use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -65,7 +69,7 @@ impl BenchmarkConfig {
                 (@arg TARGET: +required ... "Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with random choice balancing)")
                 (@arg METHOD: --method -M +takes_value "Method. By default GET")
                 (@arg HEADER: --header -H ... "Headers in \"Name:Value\" form. Can be provided multiple times.")
-                (@arg BODY: --body -B  +takes_value "Body of the request in base64. Optional.")
+                (@arg BODY: --body -B  +takes_value "Body of the request. Could be either `random://[0-9]+`, `file://$filename` or `base64://${valid_base64}`. Optional.")
             )
         ).get_matches();
 
@@ -197,12 +201,7 @@ impl BenchmarkConfig {
                 .http2_only(config.is_present("HTTP2_ONLY"))
                 .method(config.value_of("METHOD").unwrap_or("GET").to_string())
                 .headers(BenchmarkConfig::get_multiple_values(config, "HEADER"))
-                .body(
-                    config
-                        .value_of("BODY")
-                        .map(|s| base64::decode(s).expect("Invalid base64"))
-                        .unwrap_or_else(Vec::new),
-                )
+                .body(BenchmarkConfig::generate_body(config))
                 .build()
                 .expect("BenchmarkModeBuilder failed");
             BenchmarkMode::Http(http_config)
@@ -211,6 +210,46 @@ impl BenchmarkConfig {
             exit(1);
         };
         mode
+    }
+
+    fn generate_body(config: &ArgMatches) -> Vec<u8> {
+        const RANDOM_PREFIX: &str = "random://";
+        const BASE64_PREFIX: &str = "base64://";
+        const FILE_PREFIX: &str = "file://";
+
+        if let Some(body_value) = config.value_of("BODY") {
+            if body_value.starts_with(RANDOM_PREFIX) {
+                BenchmarkConfig::generate_random_vec(&body_value[RANDOM_PREFIX.len()..])
+            } else if body_value.starts_with(BASE64_PREFIX) {
+                base64::decode(&body_value[BASE64_PREFIX.len()..]).expect("Invalid base64")
+            } else if body_value.starts_with(FILE_PREFIX) {
+                BenchmarkConfig::read_file_as_vec(&body_value[FILE_PREFIX.len()..])
+            } else {
+                panic!(format!("Unsupported format: {}", body_value));
+            }
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn generate_random_vec(size: &str) -> Vec<u8> {
+        let body_size = size
+            .parse::<u32>()
+            .expect("Body must have format 'RND:NUMBER', where NUMBER is a positive integer");
+        let mut rng = rand::thread_rng();
+        let random_data: Vec<u8> = (0..body_size).map(|_| rng.gen()).collect();
+        random_data
+    }
+
+    fn read_file_as_vec(filename: &str) -> Vec<u8> {
+        let mut f = File::open(&filename).expect("File not found");
+        let metadata = fs::metadata(&filename).expect("Cannot get metadata");
+        let mut buffer = vec![0; metadata.len() as usize];
+        f.read_exact(&mut buffer)
+            .map_err(|e| panic!("Error reading file {}: {}", filename, e))
+            .unwrap();
+
+        buffer
     }
 
     fn get_multiple_values(config: &ArgMatches, id: &str) -> Vec<(String, String)> {
