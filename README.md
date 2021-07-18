@@ -135,7 +135,8 @@ FLAGS:
     -V, --version          Prints version information
 
 OPTIONS:
-    -B, --body <BODY>           Body of the request in base64. Optional.
+    -B, --body <BODY>           Body of the request. Could be either `random://[0-9]+`,
+                                `file://$filename` or `base64://${valid_base64}`. Optional.
     -H, --header <HEADER>...    Headers in "Name:Value" form. Can be provided multiple times.
     -M, --method <METHOD>       Method. By default GET
 ```
