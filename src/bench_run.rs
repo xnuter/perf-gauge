@@ -178,8 +178,11 @@ mod tests {
 
         let stats = bench_result.unwrap();
 
-        assert_eq!(body.len() * request_count, stats.total_bytes);
-        assert_eq!(request_count, stats.total_requests);
-        assert_eq!(stats.summary.get("200 OK"), Some(&(request_count as i32)));
+        assert_eq!(body.len() * request_count, stats.combined.total_bytes);
+        assert_eq!(request_count, stats.combined.total_requests);
+        assert_eq!(
+            stats.combined.summary.get("200 OK"),
+            Some(&(request_count as i32))
+        );
     }
 }

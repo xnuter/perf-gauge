@@ -169,7 +169,7 @@ impl BenchmarkConfig {
                 panic!("Illegal Prometheus Gateway addr `{}`", prometheus_addr);
             }
             metrics_destinations.push(Arc::new(PrometheusReporter::new(
-                test_case_name.clone(),
+                test_case_name,
                 prometheus_addr.to_string(),
                 matches.value_of("PROMETHEUS_JOB"),
             )));
