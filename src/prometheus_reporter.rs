@@ -1,4 +1,4 @@
-use crate::metrics::{BenchRunMetrics, ExternalMetricsServiceReporter};
+use crate::metrics::{BenchRunMetrics, BenchRunMetricsItem, ExternalMetricsServiceReporter};
 use histogram::Histogram;
 use log::info;
 use prometheus::core::{AtomicI64, GenericGauge, GenericGaugeVec};
@@ -15,9 +15,39 @@ pub struct PrometheusReporter {
 
 impl ExternalMetricsServiceReporter for PrometheusReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()> {
+        self.report_item(None, &metrics.combined)?;
+        for (operation, metrics_item) in metrics.by_operation.iter() {
+            self.report_item(Some(operation.to_owned()), metrics_item)?;
+        }
+        Ok(())
+    }
+
+    fn reset_metrics(&self) {
+        info!("Stop sending metrics to Prometheus: {}", self.address);
+        // send empty metrics to reset counters
+        self.report(&BenchRunMetrics::new()).unwrap_or_default();
+    }
+}
+
+/// For reporting to Prometheus
+impl PrometheusReporter {
+    pub fn new(test_case_name: Option<String>, addr: String, job: Option<&str>) -> Self {
+        Self {
+            test_case_name,
+            job: job.unwrap_or("pushgateway").to_string(),
+            address: addr,
+            basic_auth: None,
+        }
+    }
+
+    fn report_item(
+        &self,
+        operation_name: Option<String>,
+        metrics: &BenchRunMetricsItem,
+    ) -> io::Result<()> {
         info!("Sending metrics to Prometheus: {}", self.address,);
 
-        let registry = PrometheusReporter::build_registry(metrics);
+        let registry = PrometheusReporter::build_registry(operation_name, &metrics);
 
         let metric_families = registry.gather();
 
@@ -43,62 +73,54 @@ impl ExternalMetricsServiceReporter for PrometheusReporter {
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
 
-    fn reset_metrics(&self) {
-        info!("Stop sending metrics to Prometheus: {}", self.address);
-        // send empty metrics to reset counters
-        self.report(&BenchRunMetrics::new()).unwrap_or_default();
-    }
-}
-
-/// For reporting to Prometheus
-impl PrometheusReporter {
-    pub fn new(test_case_name: Option<String>, addr: String, job: Option<&str>) -> Self {
-        Self {
-            test_case_name,
-            job: job.unwrap_or("pushgateway").to_string(),
-            address: addr,
-            basic_auth: None,
-        }
+    fn build_metric_name(operation_name: &Option<String>, name: &str) -> String {
+        operation_name
+            .as_ref()
+            .map(|s| format!("{}_{}", s, name))
+            .unwrap_or_else(|| name.to_string())
     }
 
-    fn build_registry(bench_run_metrics: &BenchRunMetrics) -> Registry {
+    fn build_registry(
+        operation_name: Option<String>,
+        bench_run_metrics: &BenchRunMetricsItem,
+    ) -> Registry {
         let registry = Registry::new();
 
         PrometheusReporter::register_gauge(
             &registry,
-            "request_count",
+            PrometheusReporter::build_metric_name(&operation_name, "request_count"),
             "All requests",
             bench_run_metrics.total_requests as i64,
         );
         PrometheusReporter::register_gauge(
             &registry,
-            "success_count",
+            PrometheusReporter::build_metric_name(&operation_name, "success_count"),
             "Successful requests",
             bench_run_metrics.successful_requests as i64,
         );
         PrometheusReporter::register_gauge(
             &registry,
-            "bytes_count",
+            PrometheusReporter::build_metric_name(&operation_name, "bytes_count"),
             "Bytes received/sent",
             bench_run_metrics.total_bytes as i64,
         );
 
         PrometheusReporter::register_codes(
             &registry,
-            "response_codes",
+            PrometheusReporter::build_metric_name(&operation_name, "response_codes"),
             "Response codes/errors",
             &bench_run_metrics.summary,
         );
         PrometheusReporter::register_histogram(
             &registry,
-            "success_latency",
+            PrometheusReporter::build_metric_name(&operation_name, "success_latency"),
             "Latency of successful requests",
             bench_run_metrics.success_latency.clone(),
         );
 
         PrometheusReporter::register_histogram(
             &registry,
-            "error_latency",
+            PrometheusReporter::build_metric_name(&operation_name, "error_latency"),
             "Latency of failed requests",
             bench_run_metrics.error_latency.clone(),
         );
@@ -107,7 +129,7 @@ impl PrometheusReporter {
         latency.merge(&bench_run_metrics.error_latency);
         PrometheusReporter::register_histogram(
             &registry,
-            "latency",
+            PrometheusReporter::build_metric_name(&operation_name, "latency"),
             "Latency of failed requests",
             latency,
         );
@@ -115,7 +137,7 @@ impl PrometheusReporter {
         registry
     }
 
-    fn register_gauge(registry: &Registry, name: &str, help: &str, value: i64) {
+    fn register_gauge(registry: &Registry, name: String, help: &str, value: i64) {
         let gauge = GenericGauge::<AtomicI64>::new(name, help).expect("Creating gauge failed");
         registry
             .register(Box::new(gauge.clone()))
@@ -126,7 +148,7 @@ impl PrometheusReporter {
 
     fn register_codes<I: Into<i64> + Copy>(
         registry: &Registry,
-        name: &str,
+        name: String,
         help: &str,
         map_of_codes: &HashMap<String, I>,
     ) {
@@ -142,7 +164,7 @@ impl PrometheusReporter {
             .for_each(|(k, v)| codes.with_label_values(&[k]).set((*v).into()))
     }
 
-    fn register_histogram(registry: &Registry, name: &str, help: &str, histogram: Histogram) {
+    fn register_histogram(registry: &Registry, name: String, help: &str, histogram: Histogram) {
         let mut buckets = vec![];
         let mut counts = vec![];
         for bucket in histogram.into_iter() {
@@ -158,7 +180,7 @@ impl PrometheusReporter {
             counts.iter().sum::<u64>()
         );
         let prometheus_histogram = prometheus::Histogram::with_opts(
-            HistogramOpts::new(name, help).buckets(buckets.clone()),
+            HistogramOpts::new(name.to_owned(), help).buckets(buckets.clone()),
         )
         .expect("Histogram failed");
 
@@ -178,7 +200,7 @@ impl PrometheusReporter {
 
     fn register_histogram_precalculated(
         registry: &Registry,
-        name: &str,
+        name: String,
         help: &str,
         histogram: Histogram,
     ) {
@@ -209,21 +231,21 @@ impl PrometheusReporter {
             ("stddev".to_string(), histogram.stddev().unwrap_or_default()),
             (
                 "tm95".to_string(),
-                BenchRunMetrics::truncated_mean(&histogram, 5.0),
+                BenchRunMetricsItem::truncated_mean(&histogram, 5.0),
             ),
             (
                 "tm99".to_string(),
-                BenchRunMetrics::truncated_mean(&histogram, 1.0),
+                BenchRunMetricsItem::truncated_mean(&histogram, 1.0),
             ),
             (
                 "tm99_9".to_string(),
-                BenchRunMetrics::truncated_mean(&histogram, 0.1),
+                BenchRunMetricsItem::truncated_mean(&histogram, 0.1),
             ),
         ];
         for (label, value) in percentiles {
             PrometheusReporter::register_gauge(
                 registry,
-                format!("{}_{}", name, label).as_str(),
+                format!("{}_{}", name, label),
                 format!("{} {}", help, label).as_str(),
                 value as i64,
             );
@@ -253,7 +275,7 @@ mod test {
         counters.insert("500".to_string(), 1);
         PrometheusReporter::register_codes(
             &registry,
-            "response_codes",
+            PrometheusReporter::build_metric_name(&None, "response_codes"),
             "HTTP response codes",
             &counters,
         );
@@ -283,7 +305,7 @@ mod test {
 
         PrometheusReporter::register_histogram(
             &registry,
-            "latency",
+            PrometheusReporter::build_metric_name(&None, "latency"),
             "Latency of requests",
             histogram,
         );
@@ -328,7 +350,7 @@ mod test {
     }
 
     #[test]
-    fn test_build_registry() {
+    fn test_build_registry_combined() {
         let mut metrics = BenchRunMetrics::new();
         let mut total_bytes = 0;
         let mut successful_requests = 0;
@@ -358,7 +380,7 @@ mod test {
             .report(&metrics)
             .expect("infallible");
 
-        let registry = PrometheusReporter::build_registry(&metrics);
+        let registry = PrometheusReporter::build_registry(None, &metrics.combined);
 
         let metrics = registry.gather();
 
@@ -384,6 +406,116 @@ mod test {
             .expect("Missing success_count");
         let success_latency = metrics_map
             .get("success_latency")
+            .expect("Missing success_latency");
+
+        assert_eq!(MetricType::GAUGE, bytes_count.get_field_type());
+        assert_eq!(MetricType::GAUGE, request_count.get_field_type());
+        assert_eq!(MetricType::GAUGE, success_count.get_field_type());
+        assert_eq!(MetricType::GAUGE, response_codes.get_field_type());
+        assert_eq!(MetricType::HISTOGRAM, latency.get_field_type());
+        assert_eq!(MetricType::HISTOGRAM, success_latency.get_field_type());
+        assert_eq!(MetricType::HISTOGRAM, error_latency.get_field_type());
+
+        assert_eq!(
+            total_bytes as f64,
+            bytes_count.get_metric()[0].get_gauge().get_value()
+        );
+        assert_eq!(
+            total_requests as f64,
+            request_count.get_metric()[0].get_gauge().get_value()
+        );
+        assert_eq!(
+            successful_requests as f64,
+            success_count.get_metric()[0].get_gauge().get_value()
+        );
+
+        assert_eq!(
+            "Code",
+            response_codes.get_metric()[0].get_label()[0].get_name()
+        );
+        assert_eq!(
+            "200",
+            response_codes.get_metric()[0].get_label()[0].get_value()
+        );
+        assert_eq!(
+            successful_requests as f64,
+            response_codes.get_metric()[0].get_gauge().get_value()
+        );
+
+        assert_eq!(
+            "Code",
+            response_codes.get_metric()[1].get_label()[0].get_name()
+        );
+        assert_eq!(
+            "500",
+            response_codes.get_metric()[1].get_label()[0].get_value()
+        );
+        assert_eq!(
+            (total_requests - successful_requests) as f64,
+            response_codes.get_metric()[1].get_gauge().get_value()
+        );
+    }
+
+    #[test]
+    fn test_build_registry_with_operation() {
+        let mut metrics = BenchRunMetrics::new();
+        let mut total_bytes = 0;
+        let mut successful_requests = 0;
+        let mut total_requests = 0;
+
+        for i in 1..=100 {
+            let (success, code) = if i % 5 == 0 {
+                (true, "200".to_string())
+            } else {
+                (false, "500".to_string())
+            };
+            total_bytes += i;
+            successful_requests += if success { 1 } else { 0 };
+            total_requests += 1;
+
+            metrics.report_request(
+                RequestStatsBuilder::default()
+                    .bytes_processed(i)
+                    .status(code)
+                    .is_success(success)
+                    .duration(Duration::from_micros(i as u64))
+                    .build()
+                    .expect("RequestStatsBuilder failed"),
+            );
+        }
+        DefaultConsoleReporter::new(None)
+            .report(&metrics)
+            .expect("infallible");
+
+        let registry =
+            PrometheusReporter::build_registry(Some("prefix".to_string()), &metrics.combined);
+
+        let metrics = registry.gather();
+
+        let mut metrics_map = HashMap::new();
+
+        for m in metrics.iter() {
+            metrics_map.insert(m.get_name(), m);
+        }
+
+        let bytes_count = metrics_map
+            .get("prefix_bytes_count")
+            .expect("Missing bytes_count");
+        let error_latency = metrics_map
+            .get("prefix_error_latency")
+            .expect("Missing error_latency");
+        let latency = metrics_map.get("prefix_latency").expect("Missing latency");
+        let request_count = metrics_map
+            .get("prefix_request_count")
+            .expect("Missing request_count");
+        let response_codes = metrics_map
+            .get("prefix_response_codes")
+            .expect("Missing response_codes");
+        let success_count = metrics_map
+            .get("prefix_success_count")
+            .expect("Missing success_count");
+        let success_latency = metrics_map
+            .get("prefix_success_latency")
             .expect("Missing success_latency");
 
         assert_eq!(MetricType::GAUGE, bytes_count.get_field_type());
@@ -461,6 +593,7 @@ mod test {
                 bytes_processed: 0,
                 status: "200 OK".to_string(),
                 duration: Duration::from_micros(i),
+                operation_name: None,
             });
         }
 
