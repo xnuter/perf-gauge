@@ -328,7 +328,7 @@ impl DefaultConsoleReporter {
             by_operation.insert(
                 operation.to_owned(),
                 self.build_item_report(
-                    &metrics
+                    metrics
                         .by_operation
                         .get(&operation)
                         .expect("Operation key cannot be missing"),

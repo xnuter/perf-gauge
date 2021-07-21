@@ -47,7 +47,7 @@ impl PrometheusReporter {
     ) -> io::Result<()> {
         info!("Sending metrics to Prometheus: {}", self.address,);
 
-        let registry = PrometheusReporter::build_registry(operation_name, &metrics);
+        let registry = PrometheusReporter::build_registry(operation_name, metrics);
 
         let metric_families = registry.gather();
 
