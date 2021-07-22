@@ -64,13 +64,13 @@ impl Iterator for BenchSession {
         for i in 0..self.concurrency {
             let idx = i + self.current_iteration * self.concurrency;
             items.push(if let Some(requests) = self.rate_ladder.step_requests {
-                BenchRun::with_request_limit(
+                BenchRun::from_request_limit(
                     idx,
                     requests,
                     RateLimiter::build_rate_limiter(rate_per_second),
                 )
             } else if let Some(duration) = self.rate_ladder.step_duration {
-                BenchRun::with_duration_limit(
+                BenchRun::from_duration_limit(
                     idx,
                     duration,
                     RateLimiter::build_rate_limiter(rate_per_second),

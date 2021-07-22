@@ -31,7 +31,7 @@ pub trait BenchmarkProtocolAdapter {
 }
 
 impl BenchRun {
-    pub fn with_request_limit(
+    pub fn from_request_limit(
         index: usize,
         max_requests: usize,
         rate_limiter: RateLimiter,
@@ -39,7 +39,7 @@ impl BenchRun {
         Self::new(index, Some(max_requests), None, rate_limiter)
     }
 
-    pub fn with_duration_limit(
+    pub fn from_duration_limit(
         index: usize,
         max_duration: Duration,
         rate_limiter: RateLimiter,
@@ -114,7 +114,9 @@ mod tests {
     use crate::bench_session::RateLadderBuilder;
     use crate::configuration::BenchmarkMode::Http;
     use crate::configuration::{BenchmarkConfig, BenchmarkConfigBuilder};
-    use crate::http_bench_session::HttpBenchAdapterBuilder;
+    use crate::http_bench_session::{
+        HttpBenchAdapterBuilder, HttpClientConfigBuilder, HttpRequestBuilder,
+    };
     use crate::metrics::BenchRunMetrics;
     use mockito::mock;
     use std::time::Instant;
@@ -135,7 +137,13 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_adapter = HttpBenchAdapterBuilder::default()
-            .url(vec![format!("{}/1", url)])
+            .request(
+                HttpRequestBuilder::default()
+                    .url(vec![format!("{}/1", url)])
+                    .build()
+                    .unwrap(),
+            )
+            .config(HttpClientConfigBuilder::default().build().unwrap())
             .build()
             .unwrap();
 
