@@ -27,23 +27,31 @@ use std::time::Instant;
 use tokio_native_tls::TlsConnector;
 
 #[derive(Builder, Deserialize, Clone, Debug)]
-#[builder(build_fn(validate = "Self::validate"))]
-pub struct HttpBenchAdapter {
-    url: Vec<String>,
+pub struct HttpClientConfig {
     #[builder(default)]
     ignore_cert: bool,
     #[builder(default)]
     conn_reuse: bool,
     #[builder(default)]
-    verbose: bool,
-    #[builder(default)]
     http2_only: bool,
+}
+
+#[derive(Builder, Deserialize, Clone, Debug)]
+#[builder(build_fn(validate = "Self::validate"))]
+pub struct HttpRequest {
+    url: Vec<String>,
     #[builder(default = "\"GET\".to_string()")]
     method: String,
     #[builder(default)]
     headers: Vec<(String, String)>,
     #[builder(default)]
     body: Vec<u8>,
+}
+
+#[derive(Builder, Deserialize, Clone, Debug)]
+pub struct HttpBenchAdapter {
+    config: HttpClientConfig,
+    request: HttpRequest,
 }
 
 #[cfg(feature = "tls")]
@@ -73,7 +81,7 @@ impl HttpBenchAdapter {
     #[cfg(feature = "tls-native")]
     fn build_tls_connector(&self) -> TlsConnector {
         let mut native_tls_builder = native_tls::TlsConnector::builder();
-        if self.ignore_cert {
+        if self.config.ignore_cert {
             native_tls_builder.danger_accept_invalid_certs(true);
         }
 
@@ -100,14 +108,18 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
 
     fn build_client(&self) -> Result<Self::Client, String> {
         Ok(hyper::Client::builder()
-            .http2_only(self.http2_only)
-            .pool_max_idle_per_host(if !self.conn_reuse { 0 } else { usize::MAX })
+            .http2_only(self.config.http2_only)
+            .pool_max_idle_per_host(if !self.config.conn_reuse {
+                0
+            } else {
+                usize::MAX
+            })
             .build(self.build_connector()))
     }
 
     async fn send_request(&self, client: &Self::Client) -> RequestStats {
         let start = Instant::now();
-        let request = self.build_request();
+        let request = self.request.build_request();
         let response = client.request(request).await;
 
         match response {
@@ -146,7 +158,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
     }
 }
 
-impl HttpBenchAdapter {
+impl HttpRequest {
     fn build_request(&self) -> Request<Body> {
         let method =
             Method::from_str(&self.method.clone()).expect("Method must be valid at this point");
@@ -176,7 +188,7 @@ impl HttpBenchAdapter {
     }
 }
 
-impl HttpBenchAdapterBuilder {
+impl HttpRequestBuilder {
     /// Validate request is going to be built from the given settings
     fn validate(&self) -> Result<(), String> {
         if let Some(ref m) = self.method {
@@ -190,7 +202,9 @@ impl HttpBenchAdapterBuilder {
 #[cfg(test)]
 mod tests {
     use crate::bench_run::BenchmarkProtocolAdapter;
-    use crate::http_bench_session::{HttpBenchAdapter, HttpBenchAdapterBuilder};
+    use crate::http_bench_session::{
+        HttpBenchAdapter, HttpBenchAdapterBuilder, HttpClientConfigBuilder, HttpRequestBuilder,
+    };
     use mockito::mock;
     use mockito::Matcher::Exact;
     use std::time::Duration;
@@ -211,11 +225,17 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
-            .url(vec![format!("{}/1", url)])
-            .headers(vec![
-                ("x-header".to_string(), "value1".to_string()),
-                ("x-another-header".to_string(), "value2".to_string()),
-            ])
+            .request(
+                HttpRequestBuilder::default()
+                    .url(vec![format!("{}/1", url)])
+                    .headers(vec![
+                        ("x-header".to_string(), "value1".to_string()),
+                        ("x-another-header".to_string(), "value2".to_string()),
+                    ])
+                    .build()
+                    .unwrap(),
+            )
+            .config(HttpClientConfigBuilder::default().build().unwrap())
             .build()
             .unwrap();
 
@@ -243,13 +263,19 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
-            .url(vec![format!("{}/1", url)])
-            .method("PUT".to_string())
-            .headers(vec![
-                ("x-header".to_string(), "value1".to_string()),
-                ("x-another-header".to_string(), "value2".to_string()),
-            ])
-            .body("abcd".as_bytes().to_vec())
+            .request(
+                HttpRequestBuilder::default()
+                    .url(vec![format!("{}/1", url)])
+                    .method("PUT".to_string())
+                    .headers(vec![
+                        ("x-header".to_string(), "value1".to_string()),
+                        ("x-another-header".to_string(), "value2".to_string()),
+                    ])
+                    .body("abcd".as_bytes().to_vec())
+                    .build()
+                    .unwrap(),
+            )
+            .config(HttpClientConfigBuilder::default().build().unwrap())
             .build()
             .unwrap();
 
@@ -277,13 +303,19 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
-            .url(vec![format!("{}/1", url)])
-            .method("POST".to_string())
-            .headers(vec![
-                ("x-header".to_string(), "value1".to_string()),
-                ("x-another-header".to_string(), "value2".to_string()),
-            ])
-            .body("abcd".as_bytes().to_vec())
+            .request(
+                HttpRequestBuilder::default()
+                    .url(vec![format!("{}/1", url)])
+                    .method("POST".to_string())
+                    .headers(vec![
+                        ("x-header".to_string(), "value1".to_string()),
+                        ("x-another-header".to_string(), "value2".to_string()),
+                    ])
+                    .body("abcd".as_bytes().to_vec())
+                    .build()
+                    .unwrap(),
+            )
+            .config(HttpClientConfigBuilder::default().build().unwrap())
             .build()
             .unwrap();
 
@@ -308,7 +340,13 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench = HttpBenchAdapterBuilder::default()
-            .url(vec![format!("{}/1", url)])
+            .request(
+                HttpRequestBuilder::default()
+                    .url(vec![format!("{}/1", url)])
+                    .build()
+                    .unwrap(),
+            )
+            .config(HttpClientConfigBuilder::default().build().unwrap())
             .build()
             .unwrap();
 
@@ -333,8 +371,18 @@ mod tests {
         let url = mockito::server_url().to_string();
         println!("Url: {}", url);
         let http_bench: HttpBenchAdapter = HttpBenchAdapterBuilder::default()
-            .url(vec![format!("{}/1", url)])
-            .http2_only(true)
+            .request(
+                HttpRequestBuilder::default()
+                    .url(vec![format!("{}/1", url)])
+                    .build()
+                    .unwrap(),
+            )
+            .config(
+                HttpClientConfigBuilder::default()
+                    .http2_only(true)
+                    .build()
+                    .unwrap(),
+            )
             .build()
             .unwrap();
 

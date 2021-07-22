@@ -509,7 +509,7 @@ mod tests {
     fn test_has_more_work_request_limit() {
         let requests = 10;
         let mut metrics =
-            BenchRun::with_request_limit(0, requests, RateLimiter::build_rate_limiter(0.));
+            BenchRun::from_request_limit(0, requests, RateLimiter::build_rate_limiter(0.));
         for _ in 0..requests {
             assert!(metrics.has_more_work());
         }
@@ -520,7 +520,7 @@ mod tests {
     fn test_has_more_work_time_limit() {
         let duration = Duration::from_secs(1);
         let mut metrics =
-            BenchRun::with_duration_limit(0, duration, RateLimiter::build_rate_limiter(0.));
+            BenchRun::from_duration_limit(0, duration, RateLimiter::build_rate_limiter(0.));
         for _ in 0..1000 {
             assert!(metrics.has_more_work());
         }
