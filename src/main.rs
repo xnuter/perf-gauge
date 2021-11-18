@@ -28,12 +28,18 @@ use log4rs::config::{Appender, Root};
 use log4rs::Config;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
-use std::thread;
 use std::thread::JoinHandle;
+use std::{panic, process, thread};
 use tokio::io;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
+    // terminate on panic
+    panic::set_hook(Box::new(|info| {
+        eprintln!("Exiting on panic: {}", info);
+        process::exit(0x1);
+    }));
+
     let mut benchmark_config = BenchmarkConfig::from_command_line().map_err(|e| {
         println!("Failed to process parameters. Exiting.");
         e
