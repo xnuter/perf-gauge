@@ -238,7 +238,7 @@ impl fmt::Display for BenchRunReportItem {
             self.total_requests,
             self.rate_per_second,
             self.success_rate,
-            ByteSize::b(self.total_bytes as u64).to_string(),
+            ByteSize::b(self.total_bytes as u64),
             self.bitrate_mbps,
         )?;
 
