@@ -34,6 +34,8 @@ pub struct HttpClientConfig {
     conn_reuse: bool,
     #[builder(default)]
     http2_only: bool,
+    #[builder(default)]
+    pub stop_on_errors: Vec<String>,
 }
 
 #[derive(Builder, Deserialize, Clone, Debug)]
@@ -126,6 +128,9 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
             Ok(r) => {
                 let status = r.status().to_string();
                 let success = r.status().is_success();
+
+                let fatal_error = !success && self.config.stop_on_errors.contains(&status);
+
                 let mut stream = r.into_body();
                 let mut total_size = 0;
                 while let Some(item) = stream.next().await {
@@ -140,6 +145,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
                     .status(status)
                     .is_success(success)
                     .duration(Instant::now().duration_since(start))
+                    .fatal_error(fatal_error)
                     .build()
                     .expect("RequestStatsBuilder failed")
             }

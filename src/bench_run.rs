@@ -96,6 +96,7 @@ impl BenchRun {
                 .expect("Unexpected LeakyBucket.acquire error");
 
             let request_stats = bench_protocol_adapter.send_request(&client).await;
+            let fatal_error = request_stats.fatal_error;
 
             metrics_channel
                 .try_send(request_stats)
@@ -103,6 +104,10 @@ impl BenchRun {
                     error!("Error sending metrics: {}", e);
                 })
                 .unwrap_or_default();
+
+            if fatal_error {
+                break;
+            }
         }
 
         Ok(())

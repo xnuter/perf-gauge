@@ -68,6 +68,7 @@ impl BenchmarkConfig {
                 (@arg IGNORE_CERT: --ignore_cert "Allow self signed certificates.")
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
                 (@arg HTTP2_ONLY: --http2_only "Enforce HTTP/2 only")
+                (@arg STOP_ON_ERRORS: --error_stop -E ... "Stop immediately on error codes. E.g. `-E 401 -E 403`")
                 (@arg TARGET: +required ... "Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with random choice balancing)")
                 (@arg METHOD: --method -M +takes_value "Method. By default GET")
                 (@arg HEADER: --header -H ... "Headers in \"Name:Value\" form. Can be provided multiple times.")
@@ -194,6 +195,7 @@ impl BenchmarkConfig {
                         .ignore_cert(config.is_present("IGNORE_CERT"))
                         .conn_reuse(config.is_present("CONN_REUSE"))
                         .http2_only(config.is_present("HTTP2_ONLY"))
+                        .stop_on_errors(BenchmarkConfig::parse_list(config, "STOP_ON_ERRORS"))
                         .build()
                         .expect("HttpClientConfigBuilder failed"),
                 )
@@ -207,7 +209,7 @@ impl BenchmarkConfig {
                                 .collect(),
                         )
                         .method(config.value_of("METHOD").unwrap_or("GET").to_string())
-                        .headers(BenchmarkConfig::get_multiple_values(config, "HEADER"))
+                        .headers(BenchmarkConfig::parse_multiple_values(config, "HEADER"))
                         .body(BenchmarkConfig::generate_body(config))
                         .build()
                         .expect("HttpRequestBuilder failed"),
@@ -262,7 +264,7 @@ impl BenchmarkConfig {
         buffer
     }
 
-    fn get_multiple_values(config: &ArgMatches, id: &str) -> Vec<(String, String)> {
+    fn parse_multiple_values(config: &ArgMatches, id: &str) -> Vec<(String, String)> {
         config
             .values_of(id)
             .map(|v| {
@@ -275,6 +277,13 @@ impl BenchmarkConfig {
                 })
                 .collect()
             })
+            .unwrap_or_else(Vec::new)
+    }
+
+    fn parse_list(config: &ArgMatches, id: &str) -> Vec<String> {
+        config
+            .values_of(id)
+            .map(|v| v.map(|s| s.to_string()).collect())
             .unwrap_or_else(Vec::new)
     }
 
