@@ -170,9 +170,8 @@ impl HttpRequest {
         let method =
             Method::from_str(&self.method.clone()).expect("Method must be valid at this point");
 
-        let mut request_builder = Request::builder()
-            .method(method)
-            .uri(&self.url[thread_rng().gen_range(0..self.url.len())].clone());
+        let uri = &self.url[thread_rng().gen_range(0..self.url.len())];
+        let mut request_builder = Request::builder().method(method).uri(uri.clone());
 
         if !self.headers.is_empty() {
             for (key, value) in self.headers.iter() {
@@ -190,6 +189,12 @@ impl HttpRequest {
         } else {
             request_builder
                 .body(Body::empty())
+                .map_err(|e| {
+                    println!(
+                        "Cannot create url {}, headers: {:?}. Error: {}",
+                        uri, self.headers, e
+                    );
+                })
                 .expect("Error building Request")
         }
     }
