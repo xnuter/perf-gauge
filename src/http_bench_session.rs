@@ -157,6 +157,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
                     .status(status)
                     .is_success(false)
                     .duration(Instant::now().duration_since(start))
+                    .fatal_error(false)
                     .build()
                     .expect("RequestStatsBuilder failed")
             }
