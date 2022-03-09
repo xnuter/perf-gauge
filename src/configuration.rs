@@ -69,9 +69,9 @@ impl BenchmarkConfig {
                 (@arg CONN_REUSE: --conn_reuse "If connections should be re-used")
                 (@arg HTTP2_ONLY: --http2_only "Enforce HTTP/2 only")
                 (@arg TARGET: +required ... "Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with random choice balancing)")
-                (@arg STOP_ON_ERRORS: --error_stop -E ... "Stop immediately on error codes. E.g. `-E 401 -E 403`")
                 (@arg METHOD: --method -M +takes_value "Method. By default GET")
                 (@arg HEADER: --header -H ... "Headers in \"Name:Value\" form. Can be provided multiple times.")
+                (@arg STOP_ON_ERRORS: --error_stop -E ... "Stop immediately on error codes. E.g. `-E 401 -E 403`")
                 (@arg BODY: --body -B  +takes_value "Body of the request. Could be either `random://[0-9]+`, `file://$filename` or `base64://${valid_base64}`. Optional.")
             )
         ).get_matches();
