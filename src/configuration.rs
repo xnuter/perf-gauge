@@ -71,6 +71,7 @@ impl BenchmarkConfig {
                 (@arg TARGET: +required ... "Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with random choice balancing)")
                 (@arg METHOD: --method -M +takes_value "Method. By default GET")
                 (@arg HEADER: --header -H ... "Headers in \"Name:Value\" form. Can be provided multiple times.")
+                (@arg STOP_ON_ERRORS: --error_stop -E ... "Stop immediately on error codes. E.g. `-E 401 -E 403`")
                 (@arg BODY: --body -B  +takes_value "Body of the request. Could be either `random://[0-9]+`, `file://$filename` or `base64://${valid_base64}`. Optional.")
             )
         ).get_matches();
@@ -91,6 +92,10 @@ impl BenchmarkConfig {
         let number_of_requests = matches
             .value_of("NUMBER_OF_REQUESTS")
             .map(|n| parse_num(n, "Illegal number for NUMBER_OF_REQUESTS"));
+
+        if duration.is_none() && number_of_requests.is_none() {
+            panic!("Either the number of requests or the test duration must be specified");
+        }
 
         let rate_ladder = if let Some(rate_max) = rate_max {
             let rate_per_second =
@@ -194,7 +199,7 @@ impl BenchmarkConfig {
                         .ignore_cert(config.is_present("IGNORE_CERT"))
                         .conn_reuse(config.is_present("CONN_REUSE"))
                         .http2_only(config.is_present("HTTP2_ONLY"))
-                        .stop_on_errors(vec!["403".to_string(), "401".to_string()])
+                        .stop_on_errors(BenchmarkConfig::parse_list(config, "STOP_ON_ERRORS"))
                         .build()
                         .expect("HttpClientConfigBuilder failed"),
                 )
@@ -279,9 +284,12 @@ impl BenchmarkConfig {
             .unwrap_or_else(Vec::new)
     }
 
-    fn parse_list(config: &ArgMatches, id: &str) -> Vec<String> {
+    fn parse_list(config: &ArgMatches, id: &str) -> Vec<u16> {
         if let Some(value) = config.value_of(id) {
-            value.split(',').map(|s| s.to_string()).collect()
+            value
+                .split(',')
+                .map(|s| parse_num::<u16>(s, "Cannot parse error code"))
+                .collect()
         } else {
             vec![]
         }

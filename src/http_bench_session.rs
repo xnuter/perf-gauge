@@ -35,7 +35,7 @@ pub struct HttpClientConfig {
     #[builder(default)]
     http2_only: bool,
     #[builder(default)]
-    pub stop_on_errors: Vec<String>,
+    pub stop_on_errors: Vec<u16>,
 }
 
 #[derive(Builder, Deserialize, Clone, Debug)]
@@ -129,7 +129,8 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
                 let status = r.status().to_string();
                 let success = r.status().is_success();
 
-                let fatal_error = !success && self.config.stop_on_errors.contains(&status);
+                let fatal_error =
+                    !success && self.config.stop_on_errors.contains(&r.status().as_u16());
 
                 let mut stream = r.into_body();
                 let mut total_size = 0;
