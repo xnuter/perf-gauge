@@ -318,7 +318,7 @@ impl fmt::Display for BenchmarkConfig {
 pub fn parse_num<F: FromStr>(s: &str, error_msg: &str) -> F {
     s.parse()
         .map_err(|_| {
-            println!("{}", error_msg);
+            println!("{}. Non-number value: {}", error_msg, s);
             panic!("Cannot start");
         })
         .unwrap()

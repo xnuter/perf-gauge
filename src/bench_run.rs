@@ -9,8 +9,11 @@ use crate::rate_limiter::RateLimiter;
 /// except according to those terms.
 use async_trait::async_trait;
 use log::error;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::Sender;
+
+static STOP_ON_FATAL: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Debug)]
 pub struct BenchRun {
@@ -89,7 +92,7 @@ impl BenchRun {
     ) -> Result<(), String> {
         let client = bench_protocol_adapter.build_client()?;
 
-        while self.has_more_work() {
+        while self.has_more_work() && !STOP_ON_FATAL.load(Ordering::Relaxed) {
             self.rate_limiter
                 .acquire_one()
                 .await
@@ -106,6 +109,7 @@ impl BenchRun {
                 .unwrap_or_default();
 
             if fatal_error {
+                STOP_ON_FATAL.store(true, Ordering::Relaxed);
                 break;
             }
         }
