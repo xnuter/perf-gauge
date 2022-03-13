@@ -372,6 +372,7 @@ mod test {
                     .status(code)
                     .is_success(success)
                     .duration(Duration::from_micros(i as u64))
+                    .fatal_error(false)
                     .build()
                     .expect("RequestStatsBuilder failed"),
             );
@@ -478,6 +479,7 @@ mod test {
                     .bytes_processed(i)
                     .status(code)
                     .is_success(success)
+                    .fatal_error(false)
                     .duration(Duration::from_micros(i as u64))
                     .build()
                     .expect("RequestStatsBuilder failed"),
@@ -594,6 +596,7 @@ mod test {
                 status: "200 OK".to_string(),
                 duration: Duration::from_micros(i),
                 operation_name: None,
+                fatal_error: false,
             });
         }
 

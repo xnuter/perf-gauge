@@ -61,6 +61,7 @@ pub struct RequestStats {
     pub duration: Duration,
     #[builder(default = "None")]
     pub operation_name: Option<String>,
+    pub fatal_error: bool,
 }
 
 impl BenchRunMetrics {
@@ -392,6 +393,7 @@ mod tests {
                 status: code,
                 duration: Default::default(),
                 operation_name: None,
+                fatal_error: false,
             });
         }
 
@@ -421,6 +423,7 @@ mod tests {
                 status: "200 OK".to_string(),
                 duration: Duration::from_micros(i),
                 operation_name: None,
+                fatal_error: false,
             });
         }
 
@@ -452,6 +455,7 @@ mod tests {
                 } else {
                     Some("OperationB".to_string())
                 },
+                fatal_error: false,
             });
         }
 
@@ -538,6 +542,7 @@ mod tests {
                 status: "200 OK".to_string(),
                 duration: Duration::from_micros(i),
                 operation_name: None,
+                fatal_error: false,
             });
         }
 

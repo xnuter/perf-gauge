@@ -9,8 +9,11 @@ use crate::rate_limiter::RateLimiter;
 /// except according to those terms.
 use async_trait::async_trait;
 use log::error;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::Sender;
+
+static STOP_ON_FATAL: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Debug)]
 pub struct BenchRun {
@@ -95,7 +98,12 @@ impl BenchRun {
                 .await
                 .expect("Unexpected LeakyBucket.acquire error");
 
+            if STOP_ON_FATAL.load(Ordering::Relaxed) {
+                break;
+            }
+
             let request_stats = bench_protocol_adapter.send_request(&client).await;
+            let fatal_error = request_stats.fatal_error;
 
             metrics_channel
                 .try_send(request_stats)
@@ -103,6 +111,11 @@ impl BenchRun {
                     error!("Error sending metrics: {}", e);
                 })
                 .unwrap_or_default();
+
+            if fatal_error {
+                STOP_ON_FATAL.store(true, Ordering::Relaxed);
+                break;
+            }
         }
 
         Ok(())
@@ -111,6 +124,7 @@ impl BenchRun {
 
 #[cfg(test)]
 mod tests {
+    use crate::bench_run::STOP_ON_FATAL;
     use crate::bench_session::RateLadderBuilder;
     use crate::configuration::BenchmarkMode::Http;
     use crate::configuration::{BenchmarkConfig, BenchmarkConfigBuilder};
@@ -119,6 +133,7 @@ mod tests {
     };
     use crate::metrics::BenchRunMetrics;
     use mockito::mock;
+    use std::sync::atomic::Ordering;
     use std::time::Instant;
 
     #[tokio::test]
@@ -143,7 +158,12 @@ mod tests {
                     .build()
                     .unwrap(),
             )
-            .config(HttpClientConfigBuilder::default().build().unwrap())
+            .config(
+                HttpClientConfigBuilder::default()
+                    .stop_on_errors(vec![401])
+                    .build()
+                    .unwrap(),
+            )
             .build()
             .unwrap();
 
@@ -168,12 +188,15 @@ mod tests {
 
         let bench_run_stats = BenchRunMetrics::new();
 
+        STOP_ON_FATAL.store(false, Ordering::Relaxed);
+
         let bench_result = session
             .next()
             .expect("Must have runs")
             .run(bench_run_stats)
             .await;
 
+        assert!(!STOP_ON_FATAL.load(Ordering::Relaxed));
         assert!(bench_result.is_ok());
 
         let elapsed = Instant::now().duration_since(start).as_secs_f64();
@@ -192,5 +215,68 @@ mod tests {
             stats.combined.summary.get("200 OK"),
             Some(&(request_count as i32))
         );
+    }
+
+    #[tokio::test]
+    async fn test_send_load_fatal_code() {
+        let body = "world";
+
+        let request_count = 100;
+
+        let _m = mock("GET", "/1")
+            .with_status(401)
+            .with_header("content-type", "text/plain")
+            .with_body(body)
+            .expect(request_count)
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+        let http_adapter = HttpBenchAdapterBuilder::default()
+            .request(
+                HttpRequestBuilder::default()
+                    .url(vec![format!("{}/1", url)])
+                    .build()
+                    .unwrap(),
+            )
+            .config(
+                HttpClientConfigBuilder::default()
+                    .stop_on_errors(vec![401])
+                    .build()
+                    .unwrap(),
+            )
+            .build()
+            .unwrap();
+
+        let benchmark_config: BenchmarkConfig = BenchmarkConfigBuilder::default()
+            .rate_ladder(
+                RateLadderBuilder::default()
+                    .start(request_count as f64)
+                    .end(request_count as f64)
+                    .rate_increment(None)
+                    .step_duration(None)
+                    .step_requests(Some(request_count))
+                    .build()
+                    .expect("RateLadderBuilder failed"),
+            )
+            .mode(Http(http_adapter.clone()))
+            .build()
+            .expect("BenchmarkConfig failed");
+
+        let mut session = benchmark_config.clone().new_bench_session();
+
+        let bench_run_stats = BenchRunMetrics::new();
+
+        STOP_ON_FATAL.store(false, Ordering::Relaxed);
+
+        let bench_result = session
+            .next()
+            .expect("Must have runs")
+            .run(bench_run_stats)
+            .await;
+
+        // must stop on fatal
+        assert!(STOP_ON_FATAL.load(Ordering::Relaxed));
+        assert!(bench_result.is_ok());
     }
 }

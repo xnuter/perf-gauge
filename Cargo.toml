@@ -15,7 +15,7 @@ Gauging performance of network services. Snapshot or continuous, supports Promet
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "2.33"
+clap = { version = "3.1.6", features = ["derive"] }
 base64 = "0.13"
 derive_builder = "0.9"
 log = "0.4"

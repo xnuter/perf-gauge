@@ -34,6 +34,8 @@ pub struct HttpClientConfig {
     conn_reuse: bool,
     #[builder(default)]
     http2_only: bool,
+    #[builder(default)]
+    pub stop_on_errors: Vec<u16>,
 }
 
 #[derive(Builder, Deserialize, Clone, Debug)]
@@ -126,6 +128,10 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
             Ok(r) => {
                 let status = r.status().to_string();
                 let success = r.status().is_success();
+
+                let fatal_error =
+                    !success && self.config.stop_on_errors.contains(&r.status().as_u16());
+
                 let mut stream = r.into_body();
                 let mut total_size = 0;
                 while let Some(item) = stream.next().await {
@@ -140,6 +146,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
                     .status(status)
                     .is_success(success)
                     .duration(Instant::now().duration_since(start))
+                    .fatal_error(fatal_error)
                     .build()
                     .expect("RequestStatsBuilder failed")
             }
@@ -151,6 +158,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
                     .status(status)
                     .is_success(false)
                     .duration(Instant::now().duration_since(start))
+                    .fatal_error(false)
                     .build()
                     .expect("RequestStatsBuilder failed")
             }
@@ -163,9 +171,8 @@ impl HttpRequest {
         let method =
             Method::from_str(&self.method.clone()).expect("Method must be valid at this point");
 
-        let mut request_builder = Request::builder()
-            .method(method)
-            .uri(&self.url[thread_rng().gen_range(0..self.url.len())].clone());
+        let uri = &self.url[thread_rng().gen_range(0..self.url.len())];
+        let mut request_builder = Request::builder().method(method).uri(uri.clone());
 
         if !self.headers.is_empty() {
             for (key, value) in self.headers.iter() {
@@ -183,6 +190,12 @@ impl HttpRequest {
         } else {
             request_builder
                 .body(Body::empty())
+                .map_err(|e| {
+                    println!(
+                        "Cannot create url {}, headers: {:?}. Error: {}",
+                        uri, self.headers, e
+                    );
+                })
                 .expect("Error building Request")
         }
     }
