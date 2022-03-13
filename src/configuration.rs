@@ -18,8 +18,6 @@ use rand::Rng;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
-#[cfg(feature = "tls-boring")]
-use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io;
@@ -192,9 +190,11 @@ impl BenchmarkConfig {
     #[cfg(not(feature = "report-to-prometheus"))]
     fn build_metric_destinations(
         test_case_name: Option<String>,
-        matches: ArgMatches,
+        args: &Cli,
     ) -> Vec<Arc<dyn ExternalMetricsServiceReporter + Send + Sync>> {
-        if matches.value_of("PROMETHEUS_ADDR").is_some() {
+        use std::process::exit;
+
+        if args.prometheus.is_some() {
             println!("Prometheus is not supported in this configuration");
             exit(-1);
         }
@@ -241,6 +241,8 @@ impl BenchmarkConfig {
             Commands::Http(config) => {
                 #[cfg(feature = "tls-boring")]
                 if config.ignore_cert {
+                    use std::process::exit;
+
                     println!("--ignore_cert is not supported for BoringSSL");
                     exit(-1);
                 }
