@@ -44,10 +44,6 @@ pub struct BenchmarkConfig {
 }
 
 #[derive(Parser, Debug)]
-// #[clap(name = "Performance Gauge")]
-// #[clap(author = "Eugene Retunsky")]
-// #[clap(version = "0.1.9")]
-// #[clap(about = "A tool for gauging performance of network services", long_about = None)]
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
 struct Cli {
