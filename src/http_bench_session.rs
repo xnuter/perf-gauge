@@ -45,7 +45,7 @@ pub struct HttpRequest {
     #[builder(default = "\"GET\".to_string()")]
     method: String,
     #[builder(default)]
-    headers: Vec<(String, String)>,
+    headers: Vec<(String, Vec<String>)>,
     #[builder(default)]
     body: Vec<u8>,
 }
@@ -178,7 +178,8 @@ impl HttpRequest {
             for (key, value) in self.headers.iter() {
                 request_builder = request_builder.header(
                     HeaderName::from_str(key).expect("Header name must be valid at this point"),
-                    HeaderValue::from_str(value).expect("Header value must be valid at this point"),
+                    HeaderValue::from_str(&value[thread_rng().gen_range(0..value.len())])
+                        .expect("Header value must be valid at this point"),
                 );
             }
         }
@@ -242,8 +243,8 @@ mod tests {
                 HttpRequestBuilder::default()
                     .url(vec![format!("{}/1", url)])
                     .headers(vec![
-                        ("x-header".to_string(), "value1".to_string()),
-                        ("x-another-header".to_string(), "value2".to_string()),
+                        ("x-header".to_string(), vec!["value1".to_string()]),
+                        ("x-another-header".to_string(), vec!["value2".to_string()]),
                     ])
                     .build()
                     .unwrap(),
@@ -281,8 +282,8 @@ mod tests {
                     .url(vec![format!("{}/1", url)])
                     .method("PUT".to_string())
                     .headers(vec![
-                        ("x-header".to_string(), "value1".to_string()),
-                        ("x-another-header".to_string(), "value2".to_string()),
+                        ("x-header".to_string(), vec!["value1".to_string()]),
+                        ("x-another-header".to_string(), vec!["value2".to_string()]),
                     ])
                     .body("abcd".as_bytes().to_vec())
                     .build()
@@ -321,8 +322,8 @@ mod tests {
                     .url(vec![format!("{}/1", url)])
                     .method("POST".to_string())
                     .headers(vec![
-                        ("x-header".to_string(), "value1".to_string()),
-                        ("x-another-header".to_string(), "value2".to_string()),
+                        ("x-header".to_string(), vec!["value1".to_string()]),
+                        ("x-another-header".to_string(), vec!["value2".to_string()]),
                     ])
                     .body("abcd".as_bytes().to_vec())
                     .build()
@@ -338,6 +339,52 @@ mod tests {
         println!("{:?}", stats);
         assert_eq!(body.len(), stats.bytes_processed);
         assert_eq!("200 OK".to_string(), stats.status);
+    }
+
+    #[tokio::test]
+    async fn test_success_multiheader_request() {
+        let m1 = mock("GET", "/1")
+            .match_header("x-header", "value11")
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body("abcd")
+            .expect_at_least(1)
+            .create();
+
+        let m2 = mock("GET", "/1")
+            .match_header("x-header", "value12")
+            .with_status(201)
+            .with_header("content-type", "text/plain")
+            .with_body("efg")
+            .expect_at_least(1)
+            .create();
+
+        let url = mockito::server_url().to_string();
+        println!("Url: {}", url);
+        let http_bench = HttpBenchAdapterBuilder::default()
+            .request(
+                HttpRequestBuilder::default()
+                    .url(vec![format!("{}/1", url)])
+                    .method("GET".to_string())
+                    .headers(vec![(
+                        "x-header".to_string(),
+                        vec!["value11".to_string(), "value12".to_string()],
+                    )])
+                    .build()
+                    .unwrap(),
+            )
+            .config(HttpClientConfigBuilder::default().build().unwrap())
+            .build()
+            .unwrap();
+
+        let client = http_bench.build_client().expect("Client is built");
+
+        for _ in 0..128 {
+            http_bench.send_request(&client).await;
+        }
+
+        m1.assert();
+        m2.assert();
     }
 
     #[tokio::test]

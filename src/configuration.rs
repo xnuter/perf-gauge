@@ -97,7 +97,8 @@ struct HttpOptions {
     /// Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with random choice balancing).
     #[clap()]
     target: Vec<String>,
-    /// Headers in \"Name:Value\" form. Can be provided multiple times.
+    /// Headers in "Name:Value1" form. E.g. `-H "Authentication:Bearer token" -H "Date:2022-03-17"`
+    /// It can contain multiple values, e.g. "Name:Value1:Value2:Value3". In this case a random one is chosen for each request.
     #[clap(short = 'H', long)]
     header: Vec<String>,
     /// Method. By default GET.
@@ -268,7 +269,7 @@ impl BenchmarkConfig {
                                                 .next()
                                                 .expect("Header name is missing")
                                                 .to_string(),
-                                            split.collect::<Vec<&str>>().join(":"),
+                                            split.map(String::from).collect::<Vec<String>>(),
                                         )
                                     })
                                     .collect(),

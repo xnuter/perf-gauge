@@ -149,7 +149,10 @@ OPTIONS:
         --conn_reuse                 If connections should be re-used
     -E, --error_stop <ERROR_STOP>    Stop immediately on error codes. E.g. `-E 401 -E 403`
     -h, --help                       Print help information
-    -H, --header <HEADER>            Headers in \"Name:Value\" form. Can be provided multiple times
+    -H, --header <HEADER>            Headers in \"Name:Value1\" form. Can be provided multiple
+                                     times. It can contain multiple values, e.g.
+                                     \"Name:Value1:Value2:Value3\". In this case a random one is
+                                     chosen for each request
         --http2_only                 Enforce HTTP/2 only
         --ignore_cert                Allow self signed certificates
     -M, --method <METHOD>            Method. By default GET
