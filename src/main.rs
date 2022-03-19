@@ -54,7 +54,7 @@ async fn main() -> io::Result<()> {
     let bench_session = benchmark_config.new_bench_session();
 
     for batch in bench_session {
-        info!("Running next batch {:?}", batch);
+        info!("Running next batch {}", batch);
         let metrics = BenchRunMetrics::new();
         let batch_run_result = batch.run(metrics).await;
         match batch_run_result {

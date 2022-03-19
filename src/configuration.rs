@@ -22,7 +22,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum BenchmarkMode {
     Http(HttpBenchAdapter),
 }
@@ -339,8 +339,18 @@ impl fmt::Display for BenchmarkConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Mode={:?}, RateLadder={:?}, Concurrency={}",
+            "Mode={}, RateLadder={:?}, Concurrency={}",
             self.mode, self.rate_ladder, self.concurrency
         )
+    }
+}
+
+impl fmt::Display for BenchmarkMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BenchmarkMode::Http(mode) => {
+                writeln!(f, "{}", mode)
+            }
+        }
     }
 }

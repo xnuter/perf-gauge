@@ -2,6 +2,7 @@ use crate::bench_run::BenchRun;
 use crate::configuration::BenchmarkMode;
 use crate::metrics::{BenchRunMetrics, RequestStats};
 use crate::rate_limiter::RateLimiter;
+use core::fmt;
 /// Copyright 2020 Developers of the perf-gauge project.
 ///
 /// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -26,7 +27,6 @@ pub struct BenchSession {
     current_iteration: usize,
 }
 
-#[derive(Debug)]
 pub struct BenchBatch {
     runs: Vec<BenchRun>,
     mode: Arc<BenchmarkMode>,
@@ -176,6 +176,18 @@ impl RateLadder {
                 self.current = self.get_current() + increment;
             }
         }
+    }
+}
+
+impl fmt::Display for BenchBatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "Runs: {}, first run: {:?}, mode: {}",
+            self.runs.len(),
+            self.runs[0],
+            self.mode
+        )
     }
 }
 

@@ -10,6 +10,7 @@ use crate::metrics::{RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
 #[cfg(feature = "tls-boring")]
 use boring::ssl::{SslConnector, SslMethod};
+use core::fmt;
 use futures_util::StreamExt;
 use hyper::client::HttpConnector;
 use hyper::header::{HeaderName, HeaderValue};
@@ -38,7 +39,7 @@ pub struct HttpClientConfig {
     pub stop_on_errors: Vec<u16>,
 }
 
-#[derive(Builder, Deserialize, Clone, Debug)]
+#[derive(Builder, Deserialize, Clone)]
 #[builder(build_fn(validate = "Self::validate"))]
 pub struct HttpRequest {
     url: Vec<String>,
@@ -50,7 +51,7 @@ pub struct HttpRequest {
     body: Vec<u8>,
 }
 
-#[derive(Builder, Deserialize, Clone, Debug)]
+#[derive(Builder, Deserialize, Clone)]
 pub struct HttpBenchAdapter {
     config: HttpClientConfig,
     request: HttpRequest,
@@ -210,6 +211,26 @@ impl HttpRequestBuilder {
         } else {
             Ok(())
         }
+    }
+}
+
+impl fmt::Display for HttpRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "Requests={}, first request={}, method={}, headers={:?}, body size={}",
+            self.url.len(),
+            self.url[0],
+            self.method,
+            self.headers,
+            self.body.len()
+        )
+    }
+}
+
+impl fmt::Display for HttpBenchAdapter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Config={:?}, Request={}", self.config, self.request)
     }
 }
 
