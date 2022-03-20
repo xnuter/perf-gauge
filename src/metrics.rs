@@ -140,8 +140,10 @@ impl BenchRunMetricsItem {
                 truncated_mean
             );
             truncated_mean
-        } else {
+        } else if ignored_count > 0 {
             error!("No data points");
+            0
+        } else {
             0
         }
     }
