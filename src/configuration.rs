@@ -20,6 +20,7 @@ use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io;
 
 #[derive(Clone)]
@@ -39,6 +40,7 @@ pub struct BenchmarkConfig {
     pub concurrency: usize,
     pub rate_ladder: RateLadder,
     pub mode: BenchmarkMode,
+    request_timeout: Option<Duration>,
     #[builder(default)]
     pub reporters: Vec<Arc<dyn ExternalMetricsServiceReporter + Send + Sync + 'static>>,
 }
@@ -74,6 +76,9 @@ struct Cli {
     /// If it's a part of a continuous run. In this case metrics are not reset at the end to avoid saw-like plots.
     #[clap(long)]
     continuous: bool,
+    /// Timeout of a single request. E.g. "--request_timeout 30s". Timeouts are treated as fatal errors.
+    #[clap(long = "request_timeout")]
+    request_timeout: Option<String>,
     /// If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g. 10.0.0.1:9091
     #[clap(long)]
     prometheus: Option<String>,
@@ -137,6 +142,12 @@ impl BenchmarkConfig {
                 .into()
         });
 
+        let request_timeout = cli.request_timeout.as_ref().map(|d| {
+            humantime::Duration::from_str(d.as_str())
+                .expect("Illegal duration")
+                .into()
+        });
+
         let number_of_requests = cli.num_req;
 
         if duration.is_none() && number_of_requests.is_none() {
@@ -175,6 +186,7 @@ impl BenchmarkConfig {
             .concurrency(concurrency)
             .verbose(false)
             .continuous(cli.continuous)
+            .request_timeout(request_timeout)
             .mode(BenchmarkConfig::build_mode(&cli))
             .reporters(BenchmarkConfig::build_metric_destinations(
                 cli.name.clone(),
@@ -330,6 +342,7 @@ impl BenchmarkConfig {
             .concurrency(self.concurrency)
             .rate_ladder(self.rate_ladder.clone())
             .mode(Arc::new(self.mode.clone()))
+            .request_timeout(self.request_timeout)
             .build()
             .expect("BenchSessionBuilder failed")
     }
