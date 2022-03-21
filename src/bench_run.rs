@@ -142,10 +142,8 @@ impl BenchRun {
             let result = timeout(timeout_value, f).await;
 
             if let Ok(r) = result {
-                println!("No timeout: {:?}", timeout_value);
                 Ok(r)
             } else {
-                println!("Timeout: {:?}", timeout_value);
                 Err(())
             }
         } else {
