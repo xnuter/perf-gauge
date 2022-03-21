@@ -118,6 +118,10 @@ OPTIONS:
 
         --rate_step <RATE_STEP>
             Rate increase step (until it reaches --rate_max)
+            
+        --request_timeout <REQUEST_TIMEOUT>
+           Timeout of a single request. E.g. "--request_timeout 30s". Timeouts are treated as fatal
+           errors
 
     -V, --version
             Print version information
@@ -185,6 +189,7 @@ E.g. increase RPS each minute by 1,000:
 export PROMETHEUS_HOST=10.138.0.2
 
 $ perf-gauge --concurrency 10 \
+               --request_timeout 30s \
                --rate 1000 --rate_step 1000 --rate_max 25000 \
                --max_iter 15 \
                --duration 1m \
@@ -194,6 +199,7 @@ $ perf-gauge --concurrency 10 \
 ```
 
 * `--concurrency 10` - the number of clients generating load concurrently
+* `--request_timeout 30s` - do not wait for response longer than 30 seconds and stop execution on timeouts.
 * `--rate 1000 --rate_step 1000 --rate_max 25000` - start with rate 1000 rps, then add 1000 rps after each step until it reaches 25k.
 * `--duration 1m` - step duration `1m`
 * `--max_iter 15` - perform `15` iterations at the max rate

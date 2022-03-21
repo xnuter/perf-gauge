@@ -25,6 +25,7 @@ pub struct BenchSession {
     mode: Arc<BenchmarkMode>,
     #[builder(setter(skip))]
     current_iteration: usize,
+    request_timeout: Option<Duration>,
 }
 
 pub struct BenchBatch {
@@ -68,12 +69,14 @@ impl Iterator for BenchSession {
                     idx,
                     requests,
                     RateLimiter::build_rate_limiter(rate_per_second),
+                    self.request_timeout,
                 )
             } else if let Some(duration) = self.rate_ladder.step_duration {
                 BenchRun::from_duration_limit(
                     idx,
                     duration,
                     RateLimiter::build_rate_limiter(rate_per_second),
+                    self.request_timeout,
                 )
             } else {
                 unreachable!();
