@@ -6,7 +6,7 @@
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
 use leaky_bucket::{LeakyBucket, LeakyBuckets};
-use log::{error, info};
+use log::{debug, error};
 use std::time::Duration;
 
 #[derive(Clone, Debug)]
@@ -23,7 +23,7 @@ impl RateLimiter {
 
         let (amount, interval) = RateLimiter::rate_to_refill_amount_and_duration(rate_per_second);
 
-        info!(
+        debug!(
             "Rate limiter: {} per {:?}. Per second: {}",
             amount,
             interval,
@@ -35,7 +35,7 @@ impl RateLimiter {
         tokio::spawn(async move {
             match coordinator.await {
                 Ok(_) => {
-                    info!("Rate limiter is done");
+                    debug!("Rate limiter is done");
                 }
                 Err(e) => {
                     error!("Rate limiter crashed: {}", e);
