@@ -5,13 +5,15 @@
 /// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
-use leaky_bucket::{LeakyBucket, LeakyBuckets};
-use log::{debug, error};
+use leaky_bucket::RateLimiter as InnerRateLimiter;
+use log::debug;
+use std::fmt;
+use std::sync::Arc;
 use std::time::Duration;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RateLimiter {
-    leaky_bucket: Option<LeakyBucket>,
+    leaky_bucket: Option<Arc<InnerRateLimiter>>,
 }
 
 impl RateLimiter {
@@ -30,40 +32,21 @@ impl RateLimiter {
             amount / interval.as_secs_f64()
         );
 
-        let mut buckets = LeakyBuckets::new();
-        let coordinator = buckets.coordinate().expect("no other running coordinator");
-        tokio::spawn(async move {
-            match coordinator.await {
-                Ok(_) => {
-                    debug!("Rate limiter is done");
-                }
-                Err(e) => {
-                    error!("Rate limiter crashed: {}", e);
-                }
-            }
-        });
-
         RateLimiter {
-            leaky_bucket: Some(
-                buckets
-                    .rate_limiter()
+            leaky_bucket: Some(Arc::new(
+                InnerRateLimiter::builder()
                     // to compensate overhead let's add a bit to the rate
-                    .refill_amount((amount * 1.01) as usize)
-                    .refill_interval(interval)
+                    .refill((amount * 1.01) as usize)
+                    .interval(interval)
                     .max(amount as usize * 100)
-                    .build()
-                    .expect("LeakyBucket builder failed"),
-            ),
+                    .build(),
+            )),
         }
     }
 
-    pub async fn acquire_one(&self) -> Result<(), String> {
-        match self.leaky_bucket.as_ref() {
-            None => Ok(()),
-            Some(leaky_bucket) => leaky_bucket.acquire_one().await.map_err(|e| {
-                error!("Error acquiring permit: {}", e);
-                e.to_string()
-            }),
+    pub async fn acquire_one(&self) {
+        if let Some(leaky_bucket) = self.leaky_bucket.as_ref() {
+            leaky_bucket.acquire_one().await;
         }
     }
 
@@ -95,6 +78,12 @@ impl RateLimiter {
     }
 }
 
+impl fmt::Debug for RateLimiter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RateLimiter").finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::rate_limiter::RateLimiter;
@@ -105,7 +94,7 @@ mod tests {
         let rate_limiter = RateLimiter::build_rate_limiter(100.);
         let begin = Instant::now();
         for _ in 0..100 {
-            rate_limiter.acquire_one().await.expect("No reason to fail");
+            rate_limiter.acquire_one().await;
         }
         let elapsed = Instant::now().duration_since(begin);
         println!("Elapsed: {:?}", elapsed);
@@ -117,7 +106,7 @@ mod tests {
         let rate_limiter = RateLimiter::build_rate_limiter(0.5);
         let begin = Instant::now();
         for _ in 0..2 {
-            rate_limiter.acquire_one().await.expect("No reason to fail");
+            rate_limiter.acquire_one().await;
         }
         let elapsed = Instant::now().duration_since(begin);
         println!("Elapsed: {:?}", elapsed);
@@ -130,7 +119,7 @@ mod tests {
         let rate_limiter = RateLimiter::build_rate_limiter(0.);
         let begin = Instant::now();
         for _ in 0..1_000_000 {
-            rate_limiter.acquire_one().await.expect("No reason to fail");
+            rate_limiter.acquire_one().await;
         }
         let elapsed = Instant::now().duration_since(begin);
         println!("Elapsed: {:?}", elapsed);

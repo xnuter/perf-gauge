@@ -100,10 +100,7 @@ impl BenchRun {
         let client = bench_protocol_adapter.build_client()?;
 
         while self.has_more_work() {
-            self.rate_limiter
-                .acquire_one()
-                .await
-                .expect("Unexpected LeakyBucket.acquire error");
+            self.rate_limiter.acquire_one().await;
 
             if STOP_ON_FATAL.load(Ordering::Relaxed) {
                 break;
