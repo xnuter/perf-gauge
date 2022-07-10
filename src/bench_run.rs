@@ -144,7 +144,7 @@ impl BenchRun {
                 Err(())
             }
         } else {
-            return Ok(f.await);
+            Ok(f.await)
         }
     }
 }
