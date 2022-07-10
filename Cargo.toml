@@ -24,7 +24,7 @@ serde_yaml = "0.8"
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
 histogram = "0.6"
-leaky-bucket = "0.10"
+leaky-bucket = "0.12.1"
 async-trait = "0.1"
 bytesize = "1.0"
 humantime = "2.0"
