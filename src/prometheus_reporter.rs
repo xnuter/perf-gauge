@@ -221,6 +221,10 @@ impl PrometheusReporter {
                 histogram.percentile(90.0).unwrap_or_default(),
             ),
             (
+                "p95".to_string(),
+                histogram.percentile(95.0).unwrap_or_default(),
+            ),
+            (
                 "p99".to_string(),
                 histogram.percentile(99.0).unwrap_or_default(),
             ),
@@ -318,7 +322,7 @@ mod test {
 
         let metrics = registry.gather();
 
-        assert_eq!(13, metrics.len());
+        assert_eq!(14, metrics.len());
         assert_eq!("latency", metrics[0].get_name());
         assert_eq!("Latency of requests", metrics[0].get_help());
         assert_eq!(MetricType::HISTOGRAM, metrics[0].get_field_type());
@@ -337,6 +341,7 @@ mod test {
             "latency_min",
             "latency_p50",
             "latency_p90",
+            "latency_p95",
             "latency_p99",
             "latency_p99_9",
             "latency_p99_99",

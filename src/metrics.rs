@@ -191,6 +191,10 @@ impl BenchRunReportItem {
                 latency.percentile(90.0).unwrap_or_default(),
             ),
             (
+                "p95".to_string(),
+                latency.percentile(95.0).unwrap_or_default(),
+            ),
+            (
                 "p99".to_string(),
                 latency.percentile(99.0).unwrap_or_default(),
             ),
@@ -440,6 +444,7 @@ mod tests {
         assert_eq!(Some(("Min".to_string(), 0)), items.next());
         assert_eq!(Some(("p50".to_string(), 500)), items.next());
         assert_eq!(Some(("p90".to_string(), 900)), items.next());
+        assert_eq!(Some(("p95".to_string(), 950)), items.next());
         assert_eq!(Some(("p99".to_string(), 990)), items.next());
         assert_eq!(Some(("p99.9".to_string(), 999)), items.next());
         assert_eq!(Some(("p99.99".to_string(), 999)), items.next());
@@ -472,6 +477,7 @@ mod tests {
         assert_eq!(Some(("Min".to_string(), 0)), items.next());
         assert_eq!(Some(("p50".to_string(), 500)), items.next());
         assert_eq!(Some(("p90".to_string(), 900)), items.next());
+        assert_eq!(Some(("p95".to_string(), 950)), items.next());
         assert_eq!(Some(("p99".to_string(), 990)), items.next());
         assert_eq!(Some(("p99.9".to_string(), 999)), items.next());
         assert_eq!(Some(("p99.99".to_string(), 999)), items.next());
@@ -491,6 +497,7 @@ mod tests {
         assert_eq!(Some(("Min".to_string(), 0)), items.next());
         assert_eq!(Some(("p50".to_string(), 500)), items.next());
         assert_eq!(Some(("p90".to_string(), 900)), items.next());
+        assert_eq!(Some(("p95".to_string(), 950)), items.next());
         assert_eq!(Some(("p99".to_string(), 990)), items.next());
         assert_eq!(Some(("p99.9".to_string(), 998)), items.next());
         assert_eq!(Some(("p99.99".to_string(), 998)), items.next());
@@ -508,6 +515,7 @@ mod tests {
         assert_eq!(Some(("Min".to_string(), 1)), items.next());
         assert_eq!(Some(("p50".to_string(), 501)), items.next());
         assert_eq!(Some(("p90".to_string(), 901)), items.next());
+        assert_eq!(Some(("p95".to_string(), 951)), items.next());
         assert_eq!(Some(("p99".to_string(), 991)), items.next());
         assert_eq!(Some(("p99.9".to_string(), 999)), items.next());
         assert_eq!(Some(("p99.99".to_string(), 999)), items.next());
@@ -559,6 +567,7 @@ mod tests {
         assert!(as_str.contains("Min"));
         assert!(as_str.contains("p50"));
         assert!(as_str.contains("p90"));
+        assert!(as_str.contains("p95"));
         assert!(as_str.contains("p99"));
         assert!(as_str.contains("p99.9"));
         assert!(as_str.contains("p99.99"));
