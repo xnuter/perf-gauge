@@ -27,6 +27,7 @@ Emitted metrics are:
 * `response_codes` - counters for response codes (200, 400, etc.)
 * `success_latency` - latency histogram of successful requests only
 * `error_latency` - latency histogram of failed requests (if any)
+* `throughput` - throughput histogram of successful requests only
 * `latency` - latency histogram across all requests
 * `latency_{statistic}` - `{statistic} = {min, mean, max, stddev, p50, p90, p99, p99_9, p99_99, tm99, tm99.9, tm99.99}` - gauges for latency statistics
 
