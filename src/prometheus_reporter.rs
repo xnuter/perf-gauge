@@ -117,6 +117,12 @@ impl PrometheusReporter {
             "Latency of successful requests",
             bench_run_metrics.success_latency.clone(),
         );
+        PrometheusReporter::register_histogram(
+            &registry,
+            PrometheusReporter::build_metric_name(&operation_name, "throughput"),
+            "Throughput of successful requests",
+            bench_run_metrics.throughput.clone(),
+        );
 
         PrometheusReporter::register_histogram(
             &registry,
@@ -408,6 +414,7 @@ mod test {
         let success_latency = metrics_map
             .get("success_latency")
             .expect("Missing success_latency");
+        let throughput = metrics_map.get("throughput").expect("Missing throughput");
 
         assert_eq!(MetricType::GAUGE, bytes_count.get_field_type());
         assert_eq!(MetricType::GAUGE, request_count.get_field_type());
@@ -415,6 +422,7 @@ mod test {
         assert_eq!(MetricType::GAUGE, response_codes.get_field_type());
         assert_eq!(MetricType::HISTOGRAM, latency.get_field_type());
         assert_eq!(MetricType::HISTOGRAM, success_latency.get_field_type());
+        assert_eq!(MetricType::HISTOGRAM, throughput.get_field_type());
         assert_eq!(MetricType::HISTOGRAM, error_latency.get_field_type());
 
         assert_eq!(
