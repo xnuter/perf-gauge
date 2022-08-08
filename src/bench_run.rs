@@ -231,7 +231,7 @@ mod tests {
         let elapsed = Instant::now().duration_since(start).as_secs_f64();
         let time_delta = (elapsed - 1.).abs();
         assert!(
-            time_delta < 0.2,
+            time_delta < 0.3,
             "Expected to finish in ~1s, but it took: {}",
             elapsed
         );

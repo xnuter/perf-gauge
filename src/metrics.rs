@@ -29,6 +29,7 @@ pub struct BenchRunMetricsItem {
     pub(crate) total_requests: usize,
     pub(crate) successful_requests: usize,
     pub(crate) summary: HashMap<String, i32>,
+    pub(crate) throughput: Histogram,
     pub(crate) success_latency: Histogram,
     pub(crate) error_latency: Histogram,
 }
@@ -91,6 +92,7 @@ impl BenchRunMetricsItem {
             total_requests: 0,
             successful_requests: 0,
             summary: Default::default(),
+            throughput: Default::default(),
             success_latency: Default::default(),
             error_latency: Default::default(),
         }
@@ -102,6 +104,9 @@ impl BenchRunMetricsItem {
             self.successful_requests += 1;
             self.success_latency
                 .increment(stats.duration.as_micros() as u64)
+                .unwrap_or_default();
+            self.throughput
+                .increment((stats.bytes_processed as f64 / stats.duration.as_secs_f64()) as u64)
                 .unwrap_or_default();
         } else {
             self.error_latency
