@@ -57,7 +57,7 @@ sudo yum install pkg-config openssl-devel
 
 Then:
 ```
-$ cargo install perf-gauage --features full
+$ cargo install perf-gauge --features full
 ```
 
 Supported features:
