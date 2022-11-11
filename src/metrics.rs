@@ -356,9 +356,9 @@ impl DefaultConsoleReporter {
     }
 
     fn build_item_report(&self, metrics: &BenchRunMetricsItem) -> BenchRunReportItem {
-        let successful_requests = metrics.successful_requests as usize;
-        let total_requests = metrics.total_requests as usize;
-        let total_bytes = metrics.total_bytes as usize;
+        let successful_requests = metrics.successful_requests;
+        let total_requests = metrics.total_requests;
+        let total_bytes = metrics.total_bytes;
         let duration = Instant::now().duration_since(metrics.bench_begin);
         BenchRunReportItem {
             test_case_name: self
