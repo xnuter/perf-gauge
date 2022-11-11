@@ -135,17 +135,9 @@ impl BenchRun {
 
     /// Each async operation must be time-bound.
     pub async fn timed_operation<T: Future>(&self, f: T) -> Result<<T as Future>::Output, ()> {
-        if let Some(timeout_value) = self.timeout {
-            let result = timeout(timeout_value, f).await;
+        let Some(timeout_value) = self.timeout else { return Ok(f.await); };
 
-            if let Ok(r) = result {
-                Ok(r)
-            } else {
-                Err(())
-            }
-        } else {
-            Ok(f.await)
-        }
+        timeout(timeout_value, f).await.map_err(|_| ())
     }
 }
 

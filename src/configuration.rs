@@ -327,8 +327,8 @@ impl BenchmarkConfig {
     }
 
     fn read_file_as_vec(filename: &str) -> Vec<u8> {
-        let mut f = File::open(&filename).expect("File not found");
-        let metadata = fs::metadata(&filename).expect("Cannot get metadata");
+        let mut f = File::open(filename).expect("File not found");
+        let metadata = fs::metadata(filename).expect("Cannot get metadata");
         let mut buffer = vec![0; metadata.len() as usize];
         f.read_exact(&mut buffer)
             .map_err(|e| panic!("Error reading file {}: {}", filename, e))

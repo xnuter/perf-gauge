@@ -374,7 +374,7 @@ mod test {
                 (false, "500".to_string())
             };
             total_bytes += i;
-            successful_requests += if success { 1 } else { 0 };
+            successful_requests += i32::from(success);
             total_requests += 1;
 
             metrics.report_request(
@@ -484,7 +484,7 @@ mod test {
                 (false, "500".to_string())
             };
             total_bytes += i;
-            successful_requests += if success { 1 } else { 0 };
+            successful_requests += i32::from(success);
             total_requests += 1;
 
             metrics.report_request(
@@ -592,7 +592,7 @@ mod test {
         .with_body("world")
         .create();
 
-        let url = mockito::server_url().to_string();
+        let url = mockito::server_url();
         println!("Url: {}", url);
 
         let reporter = PrometheusReporter::new(

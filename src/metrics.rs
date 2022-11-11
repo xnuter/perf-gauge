@@ -328,9 +328,11 @@ impl DefaultConsoleReporter {
     }
 
     fn sorted_operations(metrics: &BenchRunMetrics) -> Vec<String> {
-        let sorted_operation_name: Vec<String> =
-            metrics.by_operation.keys().map(|s| s.to_owned()).collect();
-        sorted_operation_name
+        metrics
+            .by_operation
+            .keys()
+            .map(String::to_owned)
+            .collect::<Vec<_>>()
     }
 
     fn build_report(&self, metrics: &BenchRunMetrics) -> BenchRunReport {
@@ -472,7 +474,7 @@ mod tests {
         }
 
         let report = DefaultConsoleReporter::new(None).build_report(&metrics);
-        let mut items = report.combined.latency_summary.to_owned().into_iter();
+        let mut items = report.combined.latency_summary.iter().cloned();
 
         assert_eq!(Some(("Min".to_string(), 0)), items.next());
         assert_eq!(Some(("p50".to_string(), 500)), items.next());
@@ -492,8 +494,8 @@ mod tests {
             .get("OperationA")
             .unwrap()
             .latency_summary
-            .to_owned()
-            .into_iter();
+            .iter()
+            .cloned();
         assert_eq!(Some(("Min".to_string(), 0)), items.next());
         assert_eq!(Some(("p50".to_string(), 500)), items.next());
         assert_eq!(Some(("p90".to_string(), 900)), items.next());
@@ -510,8 +512,8 @@ mod tests {
             .get("OperationB")
             .unwrap()
             .latency_summary
-            .to_owned()
-            .into_iter();
+            .iter()
+            .cloned();
         assert_eq!(Some(("Min".to_string(), 1)), items.next());
         assert_eq!(Some(("p50".to_string(), 501)), items.next());
         assert_eq!(Some(("p90".to_string(), 901)), items.next());

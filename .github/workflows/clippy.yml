@@ -20,7 +20,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --features full -- -D warnings
+          args: --features full --tests -- -D warnings
 
   rustfmt:
     name: Format
