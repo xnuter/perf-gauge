@@ -197,7 +197,7 @@ impl PrometheusReporter {
 
         for i in 0..buckets.len() {
             for _ in 0..counts[i] {
-                prometheus_histogram.observe(buckets[i] as f64);
+                prometheus_histogram.observe(buckets[i]);
             }
         }
 

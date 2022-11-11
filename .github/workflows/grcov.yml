@@ -9,6 +9,9 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+        rust:
+          - stable
+          - 1.65.0
 
     steps:
       - uses: actions/checkout@v2
