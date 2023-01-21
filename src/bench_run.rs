@@ -116,7 +116,7 @@ impl BenchRun {
                     metrics_channel
                         .try_send(request_stats)
                         .map_err(|e| {
-                            error!("Error sending metrics: {}", e);
+                            error!("Error sending metrics: {e}");
                         })
                         .unwrap_or_default();
                     failed
@@ -172,11 +172,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_adapter = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .build()
                     .unwrap(),
             )
@@ -226,8 +226,7 @@ mod tests {
         let time_delta = (elapsed - 1.).abs();
         assert!(
             time_delta < 0.3,
-            "Expected to finish in ~1s, but it took: {}",
-            elapsed
+            "Expected to finish in ~1s, but it took: {elapsed}"
         );
 
         let stats = bench_result.unwrap();
@@ -254,11 +253,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_adapter = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .build()
                     .unwrap(),
             )
@@ -319,11 +318,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_adapter = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .build()
                     .unwrap(),
             )

@@ -76,7 +76,7 @@ impl PrometheusReporter {
     fn build_metric_name(operation_name: &Option<String>, name: &str) -> String {
         operation_name
             .as_ref()
-            .map(|s| format!("{}_{}", s, name))
+            .map(|s| format!("{s}_{name}"))
             .unwrap_or_else(|| name.to_string())
     }
 
@@ -207,7 +207,7 @@ impl PrometheusReporter {
     fn register_histogram_precalculated(
         registry: &Registry,
         name: String,
-        help: &str,
+        _help: &str,
         histogram: Histogram,
     ) {
         let percentiles = vec![
@@ -255,8 +255,8 @@ impl PrometheusReporter {
         for (label, value) in percentiles {
             PrometheusReporter::register_gauge(
                 registry,
-                format!("{}_{}", name, label),
-                format!("{} {}", help, label).as_str(),
+                format!("{name}_{label}"),
+                format!("{name} {label}").as_str(),
                 value as i64,
             );
         }
@@ -593,7 +593,7 @@ mod test {
         .create();
 
         let url = mockito::server_url();
-        println!("Url: {}", url);
+        println!("Url: {url}");
 
         let reporter = PrometheusReporter::new(
             Some("test-prometheus".to_string()),
@@ -615,6 +615,6 @@ mod test {
 
         let sent = reporter.report(&metrics);
 
-        assert!(sent.is_ok(), "{:?}", sent);
+        assert!(sent.is_ok(), "{sent:?}");
     }
 }
