@@ -26,9 +26,7 @@ impl RateLimiter {
         let (amount, interval) = RateLimiter::rate_to_refill_amount_and_duration(rate_per_second);
 
         debug!(
-            "Rate limiter: {} per {:?}. Per second: {}",
-            amount,
-            interval,
+            "Rate limiter: {amount} per {interval:?}. Per second: {}",
             amount / interval.as_secs_f64()
         );
 
@@ -97,7 +95,7 @@ mod tests {
             rate_limiter.acquire_one().await;
         }
         let elapsed = Instant::now().duration_since(begin);
-        println!("Elapsed: {:?}", elapsed);
+        println!("Elapsed: {elapsed:?}");
         assert!((elapsed.as_secs_f64() - 1.).abs() < 0.2);
     }
 
@@ -109,7 +107,7 @@ mod tests {
             rate_limiter.acquire_one().await;
         }
         let elapsed = Instant::now().duration_since(begin);
-        println!("Elapsed: {:?}", elapsed);
+        println!("Elapsed: {elapsed:?}");
         // once per 2 seconds => 4 seconds for 2 permits
         assert!((elapsed.as_secs_f64() - 4.).abs() < 0.1);
     }
@@ -122,7 +120,7 @@ mod tests {
             rate_limiter.acquire_one().await;
         }
         let elapsed = Instant::now().duration_since(begin);
-        println!("Elapsed: {:?}", elapsed);
+        println!("Elapsed: {elapsed:?}");
         assert!(elapsed.as_secs_f64() < 1.);
     }
 

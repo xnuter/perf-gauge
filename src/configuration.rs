@@ -227,7 +227,7 @@ impl BenchmarkConfig {
 
         if let Some(prometheus_addr) = &args.prometheus {
             if SocketAddr::from_str(prometheus_addr.as_str()).is_err() {
-                panic!("Illegal Prometheus Gateway addr `{}`", prometheus_addr);
+                panic!("Illegal Prometheus Gateway addr `{prometheus_addr}`");
             }
             metrics_destinations.push(Arc::new(PrometheusReporter::new(
                 test_case_name,
@@ -310,7 +310,7 @@ impl BenchmarkConfig {
             } else if let Some(filename) = body_value.strip_prefix(FILE_PREFIX) {
                 BenchmarkConfig::read_file_as_vec(filename)
             } else {
-                panic!("Unsupported format: {}", body_value);
+                panic!("Unsupported format: {body_value}");
             }
         } else {
             Vec::new()
@@ -331,7 +331,7 @@ impl BenchmarkConfig {
         let metadata = fs::metadata(filename).expect("Cannot get metadata");
         let mut buffer = vec![0; metadata.len() as usize];
         f.read_exact(&mut buffer)
-            .map_err(|e| panic!("Error reading file {}: {}", filename, e))
+            .map_err(|e| panic!("Error reading file {filename}: {e}"))
             .unwrap();
 
         buffer
@@ -362,7 +362,7 @@ impl fmt::Display for BenchmarkMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BenchmarkMode::Http(mode) => {
-                writeln!(f, "{}", mode)
+                writeln!(f, "{mode}")
             }
         }
     }

@@ -36,7 +36,7 @@ use tokio::io;
 async fn main() -> io::Result<()> {
     // terminate on panic
     panic::set_hook(Box::new(|info| {
-        eprintln!("Exiting on panic: {}", info);
+        eprintln!("Exiting on panic: {info}");
         process::exit(0x1);
     }));
 
@@ -112,10 +112,7 @@ fn create_async_metrics_channel(
 fn init_logger() {
     let logger_configuration = "./config/log4rs.yaml";
     if log4rs::init_file(logger_configuration, Default::default()).is_err() {
-        println!(
-            "Cannot find logger configuration at {}. Logging to console.",
-            logger_configuration
-        );
+        println!("Cannot find logger configuration at {logger_configuration}. Logging to console.");
         let config = Config::builder()
             .appender(
                 Appender::builder()

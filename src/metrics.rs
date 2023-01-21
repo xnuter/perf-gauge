@@ -235,7 +235,7 @@ impl fmt::Display for BenchRunReportItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self.test_case_name.as_ref() {
             None => String::new(),
-            Some(value) => format!("Test: {}\n", value),
+            Some(value) => format!("Test: {value}\n"),
         };
         writeln!(
             f,
@@ -283,20 +283,10 @@ impl fmt::Display for BenchRunReportItem {
                     writeln!(
                         f,
                         "{label}{label_spacing}:{value_spacing}{value:.2}ms",
-                        label = label,
                         value = *value as f64 / 1000.0,
-                        label_spacing = label_spacing,
-                        value_spacing = value_spacing
                     )?;
                 } else {
-                    writeln!(
-                        f,
-                        "{label}{label_spacing}:{value_spacing}{value}µs",
-                        label = label,
-                        value = value,
-                        label_spacing = label_spacing,
-                        value_spacing = value_spacing
-                    )?;
+                    writeln!(f, "{label}{label_spacing}:{value_spacing}{value}µs")?;
                 }
             }
             Ok(())
@@ -310,7 +300,7 @@ impl fmt::Display for BenchRunReportItem {
 impl ExternalMetricsServiceReporter for DefaultConsoleReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()> {
         let report = self.build_report(metrics);
-        println!("{}", report);
+        println!("{report}");
         println!("{}", "=".repeat(50));
         info!(target: "stats", "{}",
               serde_json::to_string(&report).expect("JSON serialization failed"));

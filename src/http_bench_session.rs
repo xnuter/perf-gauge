@@ -258,11 +258,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .headers(vec![
                         ("x-header".to_string(), vec!["value1".to_string()]),
                         ("x-another-header".to_string(), vec!["value2".to_string()]),
@@ -277,7 +277,7 @@ mod tests {
         let client = http_bench.build_client().expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
-        println!("{:?}", stats);
+        println!("{stats:?}");
         assert_eq!(body.len(), stats.bytes_processed);
         assert_eq!("200 OK".to_string(), stats.status);
     }
@@ -296,11 +296,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .method("PUT".to_string())
                     .headers(vec![
                         ("x-header".to_string(), vec!["value1".to_string()]),
@@ -317,7 +317,7 @@ mod tests {
         let client = http_bench.build_client().expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
-        println!("{:?}", stats);
+        println!("{stats:?}");
         assert_eq!(body.len(), stats.bytes_processed);
         assert_eq!("200 OK".to_string(), stats.status);
     }
@@ -336,11 +336,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .method("POST".to_string())
                     .headers(vec![
                         ("x-header".to_string(), vec!["value1".to_string()]),
@@ -357,7 +357,7 @@ mod tests {
         let client = http_bench.build_client().expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
-        println!("{:?}", stats);
+        println!("{stats:?}");
         assert_eq!(body.len(), stats.bytes_processed);
         assert_eq!("200 OK".to_string(), stats.status);
     }
@@ -381,11 +381,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .method("GET".to_string())
                     .headers(vec![(
                         "x-header".to_string(),
@@ -419,11 +419,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .build()
                     .unwrap(),
             )
@@ -434,7 +434,7 @@ mod tests {
         let client = http_bench.build_client().expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
-        println!("{:?}", stats);
+        println!("{stats:?}");
         assert_eq!(body.len(), stats.bytes_processed);
         assert_eq!("500 Internal Server Error".to_string(), stats.status);
     }
@@ -450,11 +450,11 @@ mod tests {
             .create();
 
         let url = mockito::server_url().to_string();
-        println!("Url: {}", url);
+        println!("Url: {url}");
         let http_bench: HttpBenchAdapter = HttpBenchAdapterBuilder::default()
             .request(
                 HttpRequestBuilder::default()
-                    .url(vec![format!("{}/1", url)])
+                    .url(vec![format!("{url}/1")])
                     .build()
                     .unwrap(),
             )
