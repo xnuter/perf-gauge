@@ -367,3 +367,32 @@ impl fmt::Display for BenchmarkMode {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_generate_random_vec() {
+        let random_data = BenchmarkConfig::generate_random_vec("100");
+        assert_eq!(random_data.len(), 100);
+    }
+
+    #[test]
+    fn test_read_file_as_vec() {
+        let random_data = BenchmarkConfig::read_file_as_vec("Cargo.toml");
+        assert!(!random_data.is_empty());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_read_file_as_vec_panic() {
+        BenchmarkConfig::read_file_as_vec("not_existing_file");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_generate_random_vec_panic() {
+        BenchmarkConfig::generate_random_vec("not_a_number");
+    }
+}
