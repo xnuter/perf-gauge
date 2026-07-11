@@ -5,10 +5,6 @@
 /// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate derive_builder;
 
 mod bench_run;
 mod bench_session;

@@ -153,25 +153,28 @@ mod tests {
         HttpBenchAdapterBuilder, HttpClientConfigBuilder, HttpRequestBuilder,
     };
     use crate::metrics::BenchRunMetrics;
-    use mockito::mock;
     use std::sync::atomic::Ordering;
     use std::thread::sleep;
     use std::time::{Duration, Instant};
 
+    static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[tokio::test]
     async fn test_send_load() {
+        let _guard = TEST_MUTEX.lock().unwrap();
         let body = "world";
-
         let request_count = 100;
+        let mut server = mockito::Server::new_async().await;
 
-        let _m = mock("GET", "/1")
+        let _m = server.mock("GET", "/1")
             .with_status(200)
             .with_header("content-type", "text/plain")
             .with_body(body)
             .expect(request_count)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_adapter = HttpBenchAdapterBuilder::default()
             .request(
@@ -241,18 +244,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_load_fatal_code() {
+        let _guard = TEST_MUTEX.lock().unwrap();
         let body = "world";
-
         let request_count = 100;
+        let mut server = mockito::Server::new_async().await;
 
-        let _m = mock("GET", "/1")
+        let _m = server.mock("GET", "/1")
             .with_status(401)
             .with_header("content-type", "text/plain")
             .with_body(body)
             .expect(request_count)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_adapter = HttpBenchAdapterBuilder::default()
             .request(
@@ -305,9 +310,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_load_with_timeout() {
+        let _guard = TEST_MUTEX.lock().unwrap();
         let request_count = 100;
+        let mut server = mockito::Server::new_async().await;
 
-        let _m = mock("GET", "/1")
+        let _m = server.mock("GET", "/1")
             .with_status(200)
             .with_body_from_fn(|_| {
                 sleep(Duration::from_secs(10));
@@ -315,9 +322,10 @@ mod tests {
             })
             .with_header("content-type", "text/plain")
             .expect(request_count)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_adapter = HttpBenchAdapterBuilder::default()
             .request(

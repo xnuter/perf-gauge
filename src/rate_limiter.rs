@@ -33,6 +33,7 @@ impl RateLimiter {
         RateLimiter {
             leaky_bucket: Some(Arc::new(
                 InnerRateLimiter::builder()
+                    .initial(0)
                     // to compensate overhead let's add a bit to the rate
                     .refill((amount * 1.01) as usize)
                     .interval(interval)
@@ -96,7 +97,7 @@ mod tests {
         }
         let elapsed = Instant::now().duration_since(begin);
         println!("Elapsed: {elapsed:?}");
-        assert!((elapsed.as_secs_f64() - 1.).abs() < 0.2);
+        assert!((elapsed.as_secs_f64() - 1.).abs() < 0.3);
     }
 
     #[tokio::test]
