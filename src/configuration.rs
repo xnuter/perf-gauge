@@ -11,8 +11,8 @@ use crate::http_bench_session::{
 };
 use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
 use clap::{Args, Parser, Subcommand};
-use derive_builder::Builder;
 use core::fmt;
+use derive_builder::Builder;
 use rand::Rng;
 use std::fs;
 use std::fs::File;
@@ -303,7 +303,7 @@ impl BenchmarkConfig {
             if let Some(body_size) = body_value.strip_prefix(RANDOM_PREFIX) {
                 BenchmarkConfig::generate_random_vec(body_size)
             } else if let Some(base64) = body_value.strip_prefix(BASE64_PREFIX) {
-                use base64::{Engine as _, prelude::BASE64_STANDARD};
+                use base64::{prelude::BASE64_STANDARD, Engine as _};
                 BASE64_STANDARD.decode(base64).expect("Invalid base64")
             } else if let Some(filename) = body_value.strip_prefix(FILE_PREFIX) {
                 BenchmarkConfig::read_file_as_vec(filename)

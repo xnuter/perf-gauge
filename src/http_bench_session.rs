@@ -1,6 +1,4 @@
 use crate::bench_run::BenchmarkProtocolAdapter;
-use serde::Deserialize;
-use derive_builder::Builder;
 /// Copyright 2020 Developers of the perf-gauge project.
 ///
 /// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -13,6 +11,7 @@ use async_trait::async_trait;
 #[cfg(feature = "tls-boring")]
 use boring::ssl::{SslConnector, SslMethod};
 use core::fmt;
+use derive_builder::Builder;
 use futures_util::StreamExt;
 use hyper::client::HttpConnector;
 use hyper::header::{HeaderName, HeaderValue};
@@ -23,6 +22,7 @@ use hyper_boring::HttpsConnector;
 use hyper_tls::HttpsConnector;
 use log::error;
 use rand::{thread_rng, Rng};
+use serde::Deserialize;
 use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
@@ -251,7 +251,8 @@ mod tests {
         let body = "world";
         let mut server = mockito::Server::new_async().await;
 
-        let _m = server.mock("GET", "/1")
+        let _m = server
+            .mock("GET", "/1")
             .with_status(200)
             .with_header("content-type", "text/plain")
             .match_header("x-header", "value1")
@@ -290,7 +291,8 @@ mod tests {
         let body = "world";
         let mut server = mockito::Server::new_async().await;
 
-        let _m = server.mock("PUT", "/1")
+        let _m = server
+            .mock("PUT", "/1")
             .match_header("x-header", "value1")
             .match_header("x-another-header", "value2")
             .match_body(Exact("abcd".to_string()))
@@ -332,7 +334,8 @@ mod tests {
         let body = "world";
         let mut server = mockito::Server::new_async().await;
 
-        let _m = server.mock("POST", "/1")
+        let _m = server
+            .mock("POST", "/1")
             .match_header("x-header", "value1")
             .match_header("x-another-header", "value2")
             .match_body(Exact("abcd".to_string()))
@@ -373,7 +376,8 @@ mod tests {
     async fn test_success_multiheader_request() {
         let mut server = mockito::Server::new_async().await;
 
-        let m1 = server.mock("GET", "/1")
+        let m1 = server
+            .mock("GET", "/1")
             .match_header("x-header", "value11")
             .with_status(200)
             .with_header("content-type", "text/plain")
@@ -382,7 +386,8 @@ mod tests {
             .create_async()
             .await;
 
-        let m2 = server.mock("GET", "/1")
+        let m2 = server
+            .mock("GET", "/1")
             .match_header("x-header", "value12")
             .with_status(201)
             .with_header("content-type", "text/plain")
@@ -424,7 +429,8 @@ mod tests {
         let body = "world";
         let mut server = mockito::Server::new_async().await;
 
-        let _m = server.mock("GET", "/1")
+        let _m = server
+            .mock("GET", "/1")
             .with_status(500)
             .with_header("content-type", "text/plain")
             .with_body(body)
@@ -457,7 +463,8 @@ mod tests {
         let body = "world";
         let mut server = mockito::Server::new_async().await;
 
-        let _m = server.mock("GET", "/1")
+        let _m = server
+            .mock("GET", "/1")
             .with_status(500)
             .with_header("content-type", "text/plain")
             .with_body(body)

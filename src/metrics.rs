@@ -1,13 +1,13 @@
 use bytesize::ByteSize;
 use core::fmt;
+use derive_builder::Builder;
 use histogram::Histogram;
 use log::{error, info};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::AddAssign;
 use std::time::{Duration, Instant};
 use std::{cmp, io};
-use serde::Serialize;
-use derive_builder::Builder;
 
 pub trait HistogramStatsExt {
     fn minimum(&self) -> Option<u64>;
@@ -203,7 +203,8 @@ impl BenchRunMetricsItem {
             successful_requests: 0,
             summary: Default::default(),
             throughput: Histogram::new(10, 64).expect("Cannot build throughput histogram"),
-            success_latency: Histogram::new(10, 64).expect("Cannot build success latency histogram"),
+            success_latency: Histogram::new(10, 64)
+                .expect("Cannot build success latency histogram"),
             error_latency: Histogram::new(10, 64).expect("Cannot build error latency histogram"),
         }
     }
@@ -232,7 +233,9 @@ impl BenchRunMetricsItem {
 
     pub fn truncated_mean(histogram: &Histogram, threshold: f64) -> u64 {
         let lowest = histogram.get_percentile(threshold).unwrap_or_default() as i64;
-        let highest = histogram.get_percentile(100. - threshold).unwrap_or_default() as i64;
+        let highest = histogram
+            .get_percentile(100. - threshold)
+            .unwrap_or_default() as i64;
         let mut ignored_count = 0;
         let mut count = 0;
         let mut sum = 0_u64;
@@ -244,8 +247,7 @@ impl BenchRunMetricsItem {
                 ignored_count += bucket.count();
             }
         }
-        if count > 0 {
-            let truncated_mean = sum / count;
+        if let Some(truncated_mean) = sum.checked_div(count) {
             info!(
                 "Truncated mean {:.3}: ignored {} data points out of {}, the %={:.6}. TM={}µs",
                 threshold,

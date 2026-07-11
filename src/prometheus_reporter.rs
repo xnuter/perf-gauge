@@ -1,4 +1,6 @@
-use crate::metrics::{BenchRunMetrics, BenchRunMetricsItem, ExternalMetricsServiceReporter, HistogramStatsExt};
+use crate::metrics::{
+    BenchRunMetrics, BenchRunMetricsItem, ExternalMetricsServiceReporter, HistogramStatsExt,
+};
 use histogram::Histogram;
 use log::info;
 use prometheus::core::{AtomicI64, GenericGauge, GenericGaugeVec};
@@ -70,7 +72,7 @@ impl PrometheusReporter {
                 password: auth.password.clone(),
             }),
         )
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        .map_err(io::Error::other)
     }
 
     fn build_metric_name(operation_name: &Option<String>, name: &str) -> String {
@@ -583,14 +585,15 @@ mod test {
     #[test]
     fn test_prometheus_reporting() {
         let mut server = mockito::Server::new();
-        let _m = server.mock(
-            "PUT",
-            "/metrics/job/prometheus_job/testname/test-prometheus",
-        )
-        .with_status(200)
-        .with_header("content-type", "text/plain")
-        .with_body("world")
-        .create();
+        let _m = server
+            .mock(
+                "PUT",
+                "/metrics/job/prometheus_job/testname/test-prometheus",
+            )
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body("world")
+            .create();
 
         let url = server.url();
         println!("Url: {url}");
