@@ -9,9 +9,6 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        rust:
-          - stable
-          - 1.65.0
 
     steps:
       - uses: actions/checkout@v2
@@ -22,6 +19,7 @@ jobs:
           toolchain: nightly
           override: true
           profile: minimal
+          components: llvm-tools-preview
 
       - name: Execute tests
         uses: actions-rs/cargo@v1
@@ -30,7 +28,8 @@ jobs:
           args: --all
         env:
           CARGO_INCREMENTAL: 0
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+          RUSTFLAGS: "-Cinstrument-coverage"
+          LLVM_PROFILE_FILE: "perf-gauge-%p-%m.profraw"
 
       - name: Gather coverage data
         id: coverage
