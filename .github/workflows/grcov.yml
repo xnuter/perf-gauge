@@ -4,62 +4,54 @@ name: Code coverage with grcov
 
 jobs:
   grcov:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        rust:
-          - stable
-          - 1.65.0
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
+      - name: Install nightly toolchain with llvm-tools-preview
+        run: |
+          rustup toolchain install nightly --profile minimal --component llvm-tools-preview --no-self-update
+          rustup default nightly
 
       - name: Execute tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all
+        run: cargo test --all
         env:
           CARGO_INCREMENTAL: 0
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+          RUSTFLAGS: "-Cinstrument-coverage"
+          LLVM_PROFILE_FILE: "perf-gauge-%p-%m.profraw"
+
+      - name: Install grcov
+        run: |
+          curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-x86_64-unknown-linux-musl.tar.bz2 | tar jxf -
+          chmod +x ./grcov
 
       - name: Gather coverage data
-        id: coverage
-        uses: actions-rs/grcov@v0.1
+        run: |
+          ./grcov . -s . --binary-path ./target/debug/ -t lcov --branch --ignore-not-existing -o lcov.info
 
-      - name: Pre-installing rust-covfix
-        uses: actions-rs/install@v0.1
-        with:
-          crate: rust-covfix
-          use-tool-cache: true
+      - name: Install rust-covfix via cargo-binstall
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          ~/.cargo/bin/cargo-binstall -y rust-covfix || true
 
       - name: Fix coverage data
-        id: fix-coverage
         continue-on-error: true
-        run: rust-covfix lcov.info -o lcov.info
+        run: rust-covfix lcov.info -o lcov.info || true
 
       - name: Coveralls upload
-        uses: coverallsapp/github-action@master
+        uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel: true
-          path-to-lcov: lcov.info
+          file: lcov.info
 
   grcov_finalize:
     runs-on: ubuntu-latest
     needs: grcov
     steps:
       - name: Coveralls finalization
-        uses: coverallsapp/github-action@master
+        uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true

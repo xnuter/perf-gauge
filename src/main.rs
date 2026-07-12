@@ -5,11 +5,6 @@
 /// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
 /// option. This file may not be copied, modified, or distributed
 /// except according to those terms.
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate derive_builder;
-
 mod bench_run;
 mod bench_session;
 mod configuration;
@@ -40,9 +35,8 @@ async fn main() -> io::Result<()> {
         process::exit(0x1);
     }));
 
-    let mut benchmark_config = BenchmarkConfig::from_command_line().map_err(|e| {
+    let mut benchmark_config = BenchmarkConfig::from_command_line().inspect_err(|_| {
         println!("Failed to process parameters. Exiting.");
-        e
     })?;
 
     init_logger();

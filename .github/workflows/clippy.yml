@@ -8,42 +8,29 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.65.0
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Install nightly toolchain with clippy available
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-          components: clippy
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy --no-self-update
+          rustup default ${{ matrix.rust }}
 
       - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --features full --tests -- -D warnings
+        run: cargo clippy --features full --tests -- -D warnings
 
   rustfmt:
     name: Format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Install nightly toolchain with rustfmt available
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-          components: rustfmt
+      - name: Install Rust nightly with rustfmt
+        run: |
+          rustup toolchain install nightly --profile minimal --component rustfmt --no-self-update
+          rustup default nightly
 
       - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check

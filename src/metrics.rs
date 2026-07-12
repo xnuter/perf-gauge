@@ -1,11 +1,121 @@
 use bytesize::ByteSize;
 use core::fmt;
+use derive_builder::Builder;
 use histogram::Histogram;
 use log::{error, info};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::AddAssign;
 use std::time::{Duration, Instant};
 use std::{cmp, io};
+
+pub trait HistogramStatsExt {
+    fn minimum(&self) -> Option<u64>;
+    fn maximum(&self) -> Option<u64>;
+    fn get_percentile(&self, p: f64) -> Option<u64>;
+    fn mean(&self) -> Option<u64>;
+    fn stddev(&self) -> Option<u64>;
+    fn merge(&mut self, other: &Self);
+}
+
+impl HistogramStatsExt for Histogram {
+    fn minimum(&self) -> Option<u64> {
+        self.quantile(0.0).ok().flatten().map(|r| r.min().start())
+    }
+
+    fn maximum(&self) -> Option<u64> {
+        self.quantile(1.0).ok().flatten().map(|r| r.max().start())
+    }
+
+    fn get_percentile(&self, p: f64) -> Option<u64> {
+        let total_count = self.into_iter().map(|b| b.count()).sum::<u64>();
+        if total_count == 0 {
+            return None;
+        }
+
+        let mut need = (total_count as f64 * (p / 100.0)).ceil() as u64;
+        if need > total_count {
+            need = total_count;
+        }
+        if need == 0 {
+            need = 1;
+        }
+
+        if p < 50.0 {
+            let mut have = 0;
+            for bucket in self {
+                have += bucket.count();
+                if have >= need {
+                    return Some(bucket.start());
+                }
+            }
+        } else {
+            let mut target_need = total_count - need;
+            if target_need == 0 {
+                target_need = 1;
+            }
+            let buckets: Vec<_> = self.into_iter().collect();
+            let mut have = 0;
+            for bucket in buckets.iter().rev() {
+                have += bucket.count();
+                if have >= target_need {
+                    return Some(bucket.start());
+                }
+            }
+        }
+        None
+    }
+
+    fn mean(&self) -> Option<u64> {
+        let mut total_count = 0_u128;
+        let mut sum = 0_u128;
+        for bucket in self {
+            let count = bucket.count() as u128;
+            if count > 0 {
+                total_count += count;
+                sum += bucket.start() as u128 * count;
+            }
+        }
+        if total_count > 0 {
+            let mean = sum as f64 / total_count as f64;
+            Some(mean.ceil() as u64)
+        } else {
+            None
+        }
+    }
+
+    fn stddev(&self) -> Option<u64> {
+        let mut total_count = 0_u128;
+        let mut sum = 0_u128;
+        for bucket in self {
+            let count = bucket.count() as u128;
+            if count > 0 {
+                total_count += count;
+                sum += bucket.start() as u128 * count;
+            }
+        }
+        if total_count == 0 {
+            return None;
+        }
+        let mean = sum as f64 / total_count as f64;
+        let mut variance_sum = 0.0_f64;
+        for bucket in self {
+            let count = bucket.count() as f64;
+            if count > 0.0 {
+                let diff = bucket.start() as f64 - mean;
+                variance_sum += diff * diff * count;
+            }
+        }
+        let stddev = (variance_sum / total_count as f64).sqrt();
+        Some(stddev.round() as u64)
+    }
+
+    fn merge(&mut self, other: &Self) {
+        if let Ok(new_hist) = self.checked_add(other) {
+            *self = new_hist;
+        }
+    }
+}
 
 pub trait ExternalMetricsServiceReporter {
     fn report(&self, metrics: &BenchRunMetrics) -> io::Result<()>;
@@ -92,9 +202,10 @@ impl BenchRunMetricsItem {
             total_requests: 0,
             successful_requests: 0,
             summary: Default::default(),
-            throughput: Default::default(),
-            success_latency: Default::default(),
-            error_latency: Default::default(),
+            throughput: Histogram::new(10, 64).expect("Cannot build throughput histogram"),
+            success_latency: Histogram::new(10, 64)
+                .expect("Cannot build success latency histogram"),
+            error_latency: Histogram::new(10, 64).expect("Cannot build error latency histogram"),
         }
     }
 
@@ -121,21 +232,22 @@ impl BenchRunMetricsItem {
     }
 
     pub fn truncated_mean(histogram: &Histogram, threshold: f64) -> u64 {
-        let lowest = histogram.percentile(threshold).unwrap_or_default() as i64;
-        let highest = histogram.percentile(100. - threshold).unwrap_or_default() as i64;
+        let lowest = histogram.get_percentile(threshold).unwrap_or_default() as i64;
+        let highest = histogram
+            .get_percentile(100. - threshold)
+            .unwrap_or_default() as i64;
         let mut ignored_count = 0;
         let mut count = 0;
         let mut sum = 0_u64;
         for bucket in histogram.into_iter() {
-            if bucket.value() as i64 >= lowest && bucket.value() as i64 <= highest {
+            if bucket.start() as i64 >= lowest && bucket.start() as i64 <= highest {
                 count += bucket.count();
-                sum += bucket.value() * bucket.count();
+                sum += bucket.start() * bucket.count();
             } else {
                 ignored_count += bucket.count();
             }
         }
-        if count > 0 {
-            let truncated_mean = sum / count;
+        if let Some(truncated_mean) = sum.checked_div(count) {
             info!(
                 "Truncated mean {:.3}: ignored {} data points out of {}, the %={:.6}. TM={}µs",
                 threshold,
@@ -184,27 +296,27 @@ impl BenchRunReportItem {
             ("Min".to_string(), latency.minimum().unwrap_or_default()),
             (
                 "p50".to_string(),
-                latency.percentile(50.0).unwrap_or_default(),
+                latency.get_percentile(50.0).unwrap_or_default(),
             ),
             (
                 "p90".to_string(),
-                latency.percentile(90.0).unwrap_or_default(),
+                latency.get_percentile(90.0).unwrap_or_default(),
             ),
             (
                 "p95".to_string(),
-                latency.percentile(95.0).unwrap_or_default(),
+                latency.get_percentile(95.0).unwrap_or_default(),
             ),
             (
                 "p99".to_string(),
-                latency.percentile(99.0).unwrap_or_default(),
+                latency.get_percentile(99.0).unwrap_or_default(),
             ),
             (
                 "p99.9".to_string(),
-                latency.percentile(99.9).unwrap_or_default(),
+                latency.get_percentile(99.9).unwrap_or_default(),
             ),
             (
                 "p99.99".to_string(),
-                latency.percentile(99.99).unwrap_or_default(),
+                latency.get_percentile(99.99).unwrap_or_default(),
             ),
             ("Max".to_string(), latency.maximum().unwrap_or_default()),
             ("Mean".to_string(), latency.mean().unwrap_or_default()),
@@ -512,7 +624,7 @@ mod tests {
         assert_eq!(Some(("p99.9".to_string(), 999)), items.next());
         assert_eq!(Some(("p99.99".to_string(), 999)), items.next());
         assert_eq!(Some(("Max".to_string(), 999)), items.next());
-        assert_eq!(Some(("Mean".to_string(), 501)), items.next());
+        assert_eq!(Some(("Mean".to_string(), 500)), items.next());
         assert_eq!(Some(("StdDev".to_string(), 289)), items.next());
     }
 

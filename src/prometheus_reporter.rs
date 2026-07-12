@@ -1,4 +1,6 @@
-use crate::metrics::{BenchRunMetrics, BenchRunMetricsItem, ExternalMetricsServiceReporter};
+use crate::metrics::{
+    BenchRunMetrics, BenchRunMetricsItem, ExternalMetricsServiceReporter, HistogramStatsExt,
+};
 use histogram::Histogram;
 use log::info;
 use prometheus::core::{AtomicI64, GenericGauge, GenericGaugeVec};
@@ -70,7 +72,7 @@ impl PrometheusReporter {
                 password: auth.password.clone(),
             }),
         )
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        .map_err(io::Error::other)
     }
 
     fn build_metric_name(operation_name: &Option<String>, name: &str) -> String {
@@ -175,7 +177,7 @@ impl PrometheusReporter {
         let mut counts = vec![];
         for bucket in histogram.into_iter() {
             if bucket.count() > 0 {
-                buckets.push(bucket.value() as f64);
+                buckets.push(bucket.start() as f64);
                 counts.push(bucket.count());
             }
         }
@@ -214,27 +216,27 @@ impl PrometheusReporter {
             ("min".to_string(), histogram.minimum().unwrap_or_default()),
             (
                 "p50".to_string(),
-                histogram.percentile(50.0).unwrap_or_default(),
+                histogram.get_percentile(50.0).unwrap_or_default(),
             ),
             (
                 "p90".to_string(),
-                histogram.percentile(90.0).unwrap_or_default(),
+                histogram.get_percentile(90.0).unwrap_or_default(),
             ),
             (
                 "p95".to_string(),
-                histogram.percentile(95.0).unwrap_or_default(),
+                histogram.get_percentile(95.0).unwrap_or_default(),
             ),
             (
                 "p99".to_string(),
-                histogram.percentile(99.0).unwrap_or_default(),
+                histogram.get_percentile(99.0).unwrap_or_default(),
             ),
             (
                 "p99_9".to_string(),
-                histogram.percentile(99.9).unwrap_or_default(),
+                histogram.get_percentile(99.9).unwrap_or_default(),
             ),
             (
                 "p99_99".to_string(),
-                histogram.percentile(99.99).unwrap_or_default(),
+                histogram.get_percentile(99.99).unwrap_or_default(),
             ),
             ("max".to_string(), histogram.maximum().unwrap_or_default()),
             ("mean".to_string(), histogram.mean().unwrap_or_default()),
@@ -271,7 +273,6 @@ mod test {
     };
     use crate::prometheus_reporter::PrometheusReporter;
     use histogram::Histogram;
-    use mockito::mock;
     use prometheus::proto::*;
     use prometheus::Registry;
     use std::collections::HashMap;
@@ -307,7 +308,7 @@ mod test {
     #[test]
     fn test_register_histogram() {
         let registry = Registry::new();
-        let mut histogram = Histogram::new();
+        let mut histogram = Histogram::new(10, 64).unwrap();
         histogram.increment(100).expect("infallible");
         histogram.increment(200).expect("infallible");
         histogram.increment(300).expect("infallible");
@@ -583,16 +584,18 @@ mod test {
 
     #[test]
     fn test_prometheus_reporting() {
-        let _m = mock(
-            "PUT",
-            "/metrics/job/prometheus_job/testname/test-prometheus",
-        )
-        .with_status(200)
-        .with_header("content-type", "text/plain")
-        .with_body("world")
-        .create();
+        let mut server = mockito::Server::new();
+        let _m = server
+            .mock(
+                "PUT",
+                "/metrics/job/prometheus_job/testname/test-prometheus",
+            )
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body("world")
+            .create();
 
-        let url = mockito::server_url();
+        let url = server.url();
         println!("Url: {url}");
 
         let reporter = PrometheusReporter::new(

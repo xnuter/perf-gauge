@@ -10,10 +10,9 @@ use crate::http_bench_session::{
     HttpBenchAdapter, HttpBenchAdapterBuilder, HttpClientConfigBuilder, HttpRequestBuilder,
 };
 use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
-use clap::Args;
-use clap::Parser;
-use clap::Subcommand;
+use clap::{Args, Parser, Subcommand};
 use core::fmt;
+use derive_builder::Builder;
 use rand::Rng;
 use std::fs;
 use std::fs::File;
@@ -31,10 +30,12 @@ pub enum BenchmarkMode {
 #[derive(Clone, Builder)]
 pub struct BenchmarkConfig {
     #[builder(default)]
+    #[allow(dead_code)]
     pub name: Option<String>,
     #[builder(default)]
     pub continuous: bool,
     #[builder(default)]
+    #[allow(dead_code)]
     pub verbose: bool,
     #[builder(default = "1")]
     pub concurrency: usize,
@@ -46,46 +47,46 @@ pub struct BenchmarkConfig {
 }
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-#[clap(propagate_version = true)]
+#[command(author, version, about, long_about = None)]
+#[command(propagate_version = true)]
 struct Cli {
     /// Concurrent clients. Default `1`.
-    #[clap(short, long, default_value_t = 1)]
+    #[arg(short, long, default_value_t = 1)]
     concurrency: usize,
     /// Duration of the test.
-    #[clap(short, long)]
+    #[arg(short, long)]
     duration: Option<String>,
     /// Number of requests per client.
-    #[clap(short, long = "num_req")]
+    #[arg(short, long = "num_req")]
     num_req: Option<usize>,
     /// Test case name. Optional. Can be used for tagging metrics.
-    #[clap(short = 'N', long)]
+    #[arg(short = 'N', long)]
     name: Option<String>,
     /// Request rate per second. E.g. 100 or 0.1. By default no limit.
-    #[clap(short, long)]
+    #[arg(short, long)]
     rate: Option<f64>,
     /// Rate increase step (until it reaches --rate_max).
-    #[clap(long = "rate_step")]
+    #[arg(long = "rate_step")]
     rate_step: Option<f64>,
     /// Max rate per second. Requires --rate-step
-    #[clap(long = "rate_max")]
+    #[arg(long = "rate_max")]
     rate_max: Option<f64>,
     /// takes_value "The number of iterations with the max rate. By default `1`.
-    #[clap(short, long = "max_iter", default_value_t = 1)]
+    #[arg(short, long = "max_iter", default_value_t = 1)]
     max_iter: usize,
     /// If it's a part of a continuous run. In this case metrics are not reset at the end to avoid saw-like plots.
-    #[clap(long)]
+    #[arg(long)]
     continuous: bool,
     /// Timeout of a single request. E.g. "--request_timeout 30s". Timeouts are treated as fatal errors.
-    #[clap(long = "request_timeout")]
+    #[arg(long = "request_timeout")]
     request_timeout: Option<String>,
     /// If you'd like to send metrics to Prometheus PushGateway, specify the server URL. E.g. 10.0.0.1:9091
-    #[clap(long)]
+    #[arg(long)]
     prometheus: Option<String>,
     /// Prometheus Job (by default `pushgateway`)
-    #[clap(long = "prometheus_job")]
+    #[arg(long = "prometheus_job")]
     prometheus_job: Option<String>,
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Commands,
 }
 
@@ -95,34 +96,32 @@ enum Commands {
 }
 
 #[derive(Args, Debug)]
-#[clap(about = "Run in HTTP(S) mode", long_about = None)]
-#[clap(author, version, long_about = None)]
-#[clap(propagate_version = true)]
+#[command(about = "Run in HTTP(S) mode", long_about = None)]
 struct HttpOptions {
     /// Target, e.g. https://my-service.com:8443/8kb Can be multiple ones (with random choice balancing).
-    #[clap()]
+    #[arg()]
     target: Vec<String>,
     /// Headers in "Name:Value1" form. E.g. `-H "Authentication:Bearer token" -H "Date:2022-03-17"`
     /// It can contain multiple values, e.g. "Name:Value1:Value2:Value3". In this case a random one is chosen for each request.
-    #[clap(short = 'H', long)]
+    #[arg(short = 'H', long)]
     header: Vec<String>,
     /// Method. By default GET.
-    #[clap(short = 'M', long)]
+    #[arg(short = 'M', long)]
     method: Option<String>,
     /// Stop immediately on error codes. E.g. `-E 401 -E 403`
-    #[clap(short = 'E', long = "error_stop")]
+    #[arg(short = 'E', long = "error_stop")]
     error_stop: Vec<u16>,
     /// Body of the request. Could be either `random://[0-9]+`, `file://$filename` or `base64://${valid_base64}`. Optional.
-    #[clap(short = 'B', long)]
+    #[arg(short = 'B', long)]
     body: Option<String>,
     /// Allow self signed certificates.
-    #[clap(long = "ignore_cert")]
+    #[arg(long = "ignore_cert")]
     ignore_cert: bool,
     /// If connections should be re-used.
-    #[clap(long = "conn_reuse")]
+    #[arg(long = "conn_reuse")]
     conn_reuse: bool,
     /// Enforce HTTP/2 only.
-    #[clap(long = "http2_only")]
+    #[arg(long = "http2_only")]
     http2_only: bool,
 }
 
@@ -306,7 +305,8 @@ impl BenchmarkConfig {
             if let Some(body_size) = body_value.strip_prefix(RANDOM_PREFIX) {
                 BenchmarkConfig::generate_random_vec(body_size)
             } else if let Some(base64) = body_value.strip_prefix(BASE64_PREFIX) {
-                base64::decode(base64).expect("Invalid base64")
+                use base64::{prelude::BASE64_STANDARD, Engine as _};
+                BASE64_STANDARD.decode(base64).expect("Invalid base64")
             } else if let Some(filename) = body_value.strip_prefix(FILE_PREFIX) {
                 BenchmarkConfig::read_file_as_vec(filename)
             } else {

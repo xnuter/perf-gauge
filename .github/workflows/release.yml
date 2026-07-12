@@ -1,9 +1,4 @@
 on: [push]
-#on:
-#  push:
-#    # Sequence of patterns matched against refs/tags
-#    tags:
-#      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 name: Release binaries
 
@@ -20,31 +15,21 @@ jobs:
         include:
           - build: linux
             os: ubuntu-latest
-            rust: stable
           - build: macos
             os: macos-latest
-            rust: stable
           - build: windows
             os: windows-latest
-            rust:
-              - stable
-              - 1.65.0
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
+      - name: Install Rust stable
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --features full
+        run: cargo build --release --features full
 
       - name: Create artifact directory
         run: mkdir artifacts
@@ -58,7 +43,6 @@ jobs:
         if: matrix.os == 'windows-latest'
 
       - name: Install p7zip
-        # 7Zip not available on MacOS, install p7zip via homebrew.
         run: brew install p7zip
         if: matrix.os == 'macos-latest'
 
@@ -66,10 +50,8 @@ jobs:
         run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.zip ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }}
         if: matrix.os == 'macos-latest'
 
-      # This will double-zip
-      # See - https://github.com/actions/upload-artifact/issues/39
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         name: Upload archive
         with:
-          name: ${{ runner.os }}
+          name: ${{ matrix.build }}-archive
           path: artifacts/

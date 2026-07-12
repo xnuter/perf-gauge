@@ -11,6 +11,7 @@ use async_trait::async_trait;
 #[cfg(feature = "tls-boring")]
 use boring::ssl::{SslConnector, SslMethod};
 use core::fmt;
+use derive_builder::Builder;
 use futures_util::StreamExt;
 use hyper::client::HttpConnector;
 use hyper::header::{HeaderName, HeaderValue};
@@ -21,6 +22,7 @@ use hyper_boring::HttpsConnector;
 use hyper_tls::HttpsConnector;
 use log::error;
 use rand::{thread_rng, Rng};
+use serde::Deserialize;
 use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
@@ -240,7 +242,6 @@ mod tests {
     use crate::http_bench_session::{
         HttpBenchAdapter, HttpBenchAdapterBuilder, HttpClientConfigBuilder, HttpRequestBuilder,
     };
-    use mockito::mock;
     use mockito::Matcher::Exact;
     use std::time::Duration;
     use tokio::time::timeout;
@@ -248,16 +249,19 @@ mod tests {
     #[tokio::test]
     async fn test_success_request() {
         let body = "world";
+        let mut server = mockito::Server::new_async().await;
 
-        let _m = mock("GET", "/1")
+        let _m = server
+            .mock("GET", "/1")
             .with_status(200)
             .with_header("content-type", "text/plain")
             .match_header("x-header", "value1")
             .match_header("x-another-header", "value2")
             .with_body(body)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
@@ -285,17 +289,20 @@ mod tests {
     #[tokio::test]
     async fn test_success_put_request() {
         let body = "world";
+        let mut server = mockito::Server::new_async().await;
 
-        let _m = mock("PUT", "/1")
+        let _m = server
+            .mock("PUT", "/1")
             .match_header("x-header", "value1")
             .match_header("x-another-header", "value2")
             .match_body(Exact("abcd".to_string()))
             .with_status(200)
             .with_header("content-type", "text/plain")
             .with_body(body)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
@@ -325,17 +332,20 @@ mod tests {
     #[tokio::test]
     async fn test_success_post_request() {
         let body = "world";
+        let mut server = mockito::Server::new_async().await;
 
-        let _m = mock("POST", "/1")
+        let _m = server
+            .mock("POST", "/1")
             .match_header("x-header", "value1")
             .match_header("x-another-header", "value2")
             .match_body(Exact("abcd".to_string()))
             .with_status(200)
             .with_header("content-type", "text/plain")
             .with_body(body)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
@@ -364,23 +374,29 @@ mod tests {
 
     #[tokio::test]
     async fn test_success_multiheader_request() {
-        let m1 = mock("GET", "/1")
+        let mut server = mockito::Server::new_async().await;
+
+        let m1 = server
+            .mock("GET", "/1")
             .match_header("x-header", "value11")
             .with_status(200)
             .with_header("content-type", "text/plain")
             .with_body("abcd")
             .expect_at_least(1)
-            .create();
+            .create_async()
+            .await;
 
-        let m2 = mock("GET", "/1")
+        let m2 = server
+            .mock("GET", "/1")
             .match_header("x-header", "value12")
             .with_status(201)
             .with_header("content-type", "text/plain")
             .with_body("efg")
             .expect_at_least(1)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
@@ -404,21 +420,24 @@ mod tests {
             http_bench.send_request(&client).await;
         }
 
-        m1.assert();
-        m2.assert();
+        m1.assert_async().await;
+        m2.assert_async().await;
     }
 
     #[tokio::test]
     async fn test_failed_request() {
         let body = "world";
+        let mut server = mockito::Server::new_async().await;
 
-        let _m = mock("GET", "/1")
+        let _m = server
+            .mock("GET", "/1")
             .with_status(500)
             .with_header("content-type", "text/plain")
             .with_body(body)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_bench = HttpBenchAdapterBuilder::default()
             .request(
@@ -442,14 +461,17 @@ mod tests {
     #[tokio::test]
     async fn test_only_http2() {
         let body = "world";
+        let mut server = mockito::Server::new_async().await;
 
-        let _m = mock("GET", "/1")
+        let _m = server
+            .mock("GET", "/1")
             .with_status(500)
             .with_header("content-type", "text/plain")
             .with_body(body)
-            .create();
+            .create_async()
+            .await;
 
-        let url = mockito::server_url().to_string();
+        let url = server.url();
         println!("Url: {url}");
         let http_bench: HttpBenchAdapter = HttpBenchAdapterBuilder::default()
             .request(
@@ -470,8 +492,12 @@ mod tests {
         let client = http_bench.build_client().expect("Client is built");
         let result = timeout(Duration::from_secs(1), http_bench.send_request(&client)).await;
 
+        let failed = match result {
+            Err(_) => true,
+            Ok(stats) => !stats.is_success,
+        };
         assert!(
-            result.is_err(),
+            failed,
             "Expected to fail as h2 is not supported by the endpoint"
         );
     }
