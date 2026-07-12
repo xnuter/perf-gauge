@@ -28,13 +28,14 @@ pub enum BenchmarkMode {
 }
 
 #[derive(Clone, Builder)]
-#[allow(dead_code)]
 pub struct BenchmarkConfig {
     #[builder(default)]
+    #[allow(dead_code)]
     pub name: Option<String>,
     #[builder(default)]
     pub continuous: bool,
     #[builder(default)]
+    #[allow(dead_code)]
     pub verbose: bool,
     #[builder(default = "1")]
     pub concurrency: usize,

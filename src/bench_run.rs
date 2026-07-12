@@ -18,8 +18,8 @@ use tokio::time::timeout;
 static STOP_ON_FATAL: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub struct BenchRun {
+    #[allow(dead_code)]
     pub index: usize,
     bench_begin: Instant,
     timeout: Option<Duration>,
