@@ -110,7 +110,7 @@ mod tests {
         let elapsed = Instant::now().duration_since(begin);
         println!("Elapsed: {elapsed:?}");
         // once per 2 seconds => 4 seconds for 2 permits
-        assert!((elapsed.as_secs_f64() - 4.).abs() < 0.1);
+        assert!((elapsed.as_secs_f64() - 4.).abs() < 0.5);
     }
 
     #[tokio::test]

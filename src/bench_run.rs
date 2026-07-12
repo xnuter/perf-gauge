@@ -325,7 +325,7 @@ mod tests {
             .mock("GET", "/1")
             .with_status(200)
             .with_body_from_fn(|_| {
-                sleep(Duration::from_secs(10));
+                sleep(Duration::from_millis(200));
                 Ok(())
             })
             .with_header("content-type", "text/plain")
