@@ -28,6 +28,7 @@ pub enum BenchmarkMode {
 }
 
 #[derive(Clone, Builder)]
+#[allow(dead_code)]
 pub struct BenchmarkConfig {
     #[builder(default)]
     pub name: Option<String>,

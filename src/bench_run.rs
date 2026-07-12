@@ -18,6 +18,7 @@ use tokio::time::timeout;
 static STOP_ON_FATAL: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct BenchRun {
     pub index: usize,
     bench_begin: Instant,
@@ -314,6 +315,7 @@ mod tests {
 
     #[tokio::test]
     #[allow(clippy::await_holding_lock)]
+    #[allow(deprecated)]
     async fn test_send_load_with_timeout() {
         let _guard = TEST_MUTEX.lock().unwrap();
         let request_count = 100;
