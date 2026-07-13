@@ -10,9 +10,11 @@ use crate::http_bench_session::{
     HttpBenchAdapter, HttpBenchAdapterBuilder, HttpClientConfigBuilder, HttpRequestBuilder,
 };
 use crate::metrics::{DefaultConsoleReporter, ExternalMetricsServiceReporter};
+use bytes::Bytes;
 use clap::{Args, Parser, Subcommand};
 use core::fmt;
 use derive_builder::Builder;
+use hyper::Method;
 use rand::Rng;
 use std::fs;
 use std::fs::File;
@@ -268,7 +270,16 @@ impl BenchmarkConfig {
                     .request(
                         HttpRequestBuilder::default()
                             .url(config.target.clone())
-                            .method(config.method.as_ref().unwrap_or(&"GET".to_string()).clone())
+                            .method(
+                                Method::from_bytes(
+                                    config
+                                        .method
+                                        .as_ref()
+                                        .map_or("GET", |s| s.as_str())
+                                        .as_bytes(),
+                                )
+                                .expect("Invalid HTTP method"),
+                            )
                             .headers(
                                 config
                                     .header
@@ -296,24 +307,24 @@ impl BenchmarkConfig {
         }
     }
 
-    fn generate_body(args: &HttpOptions) -> Vec<u8> {
+    fn generate_body(args: &HttpOptions) -> Bytes {
         const RANDOM_PREFIX: &str = "random://";
         const BASE64_PREFIX: &str = "base64://";
         const FILE_PREFIX: &str = "file://";
 
         if let Some(body_value) = &args.body {
             if let Some(body_size) = body_value.strip_prefix(RANDOM_PREFIX) {
-                BenchmarkConfig::generate_random_vec(body_size)
+                Bytes::from(BenchmarkConfig::generate_random_vec(body_size))
             } else if let Some(base64) = body_value.strip_prefix(BASE64_PREFIX) {
                 use base64::{prelude::BASE64_STANDARD, Engine as _};
-                BASE64_STANDARD.decode(base64).expect("Invalid base64")
+                Bytes::from(BASE64_STANDARD.decode(base64).expect("Invalid base64"))
             } else if let Some(filename) = body_value.strip_prefix(FILE_PREFIX) {
-                BenchmarkConfig::read_file_as_vec(filename)
+                Bytes::from(BenchmarkConfig::read_file_as_vec(filename))
             } else {
                 panic!("Unsupported format: {body_value}");
             }
         } else {
-            Vec::new()
+            Bytes::new()
         }
     }
 

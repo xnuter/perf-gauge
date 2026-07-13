@@ -97,6 +97,10 @@ impl BenchBatch {
     pub async fn run(self, mut metrics: BenchRunMetrics) -> Result<BenchRunMetrics, String> {
         let (metrics_sender, mut metrics_receiver) = mpsc::channel(1_000);
 
+        // Reset the global stop flag so a fatal error from a previous batch
+        // doesn't prevent this batch from executing.
+        BenchRun::reset_stop_flag();
+
         // single consumer to aggregate metrics
         let metrics_aggregator = tokio::spawn(async move {
             while let Some(request_stats) = metrics_receiver.recv().await {
