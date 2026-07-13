@@ -5,9 +5,9 @@ use histogram::Histogram;
 use log::{error, info};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::io;
 use std::ops::AddAssign;
 use std::time::{Duration, Instant};
-use std::{cmp, io};
 
 pub trait HistogramStatsExt {
     fn minimum(&self) -> Option<u64>;
@@ -274,14 +274,7 @@ impl BenchRunReportItem {
             .map(|(k, v)| (k.clone(), *v))
             .collect();
 
-        pairs.sort_by(|a, b| {
-            let d = b.1 - a.1;
-            match d {
-                1..=0x7fffffff => cmp::Ordering::Greater,
-                0 => a.0.cmp(&b.0),
-                _ => cmp::Ordering::Less,
-            }
-        });
+        pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
         pairs
     }
@@ -471,7 +464,11 @@ impl DefaultConsoleReporter {
             duration,
             total_bytes,
             total_requests,
-            success_rate: successful_requests as f64 * 100. / total_requests as f64,
+            success_rate: if total_requests > 0 {
+                successful_requests as f64 * 100. / total_requests as f64
+            } else {
+                0.0
+            },
             rate_per_second: total_requests as f64 / duration.as_secs_f64(),
             bitrate_mbps: total_bytes as f64 / duration.as_secs_f64() * 8. / 1_000_000.,
             response_code_summary: BenchRunReportItem::summary_ordered(metrics),
