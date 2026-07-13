@@ -13,14 +13,16 @@ use boring::ssl::{SslConnector, SslMethod};
 use bytes::Bytes;
 use core::fmt;
 use derive_builder::Builder;
-use futures_util::StreamExt;
-use hyper::client::HttpConnector;
+use http_body_util::{BodyExt, Full};
 use hyper::header::{HeaderName, HeaderValue};
-use hyper::{Body, Method, Request};
+use hyper::{Method, Request};
 #[cfg(feature = "tls-boring")]
 use hyper_boring::HttpsConnector;
 #[cfg(feature = "tls-native")]
 use hyper_tls::HttpsConnector;
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
 use log::error;
 use rand::{thread_rng, Rng};
 use serde::Deserialize;
@@ -122,10 +124,10 @@ impl HttpBenchAdapter {
 
 #[async_trait]
 impl BenchmarkProtocolAdapter for HttpBenchAdapter {
-    type Client = hyper::Client<ProtocolConnector>;
+    type Client = Client<ProtocolConnector, Full<Bytes>>;
 
     fn build_client(&self) -> Result<Self::Client, String> {
-        Ok(hyper::Client::builder()
+        Ok(Client::builder(TokioExecutor::new())
             .http2_only(self.config.http2_only)
             .pool_max_idle_per_host(if !self.config.conn_reuse {
                 0
@@ -148,15 +150,20 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
                 let fatal_error =
                     !success && self.config.stop_on_errors.contains(&r.status().as_u16());
 
-                let mut stream = r.into_body();
+                let mut body = r.into_body();
                 let mut total_size = 0;
                 let mut body_error = false;
-                while let Some(item) = stream.next().await {
-                    if let Ok(bytes) = item {
-                        total_size += bytes.len();
-                    } else {
-                        body_error = true;
-                        break;
+                while let Some(frame_result) = body.frame().await {
+                    match frame_result {
+                        Ok(frame) => {
+                            if let Some(data) = frame.data_ref() {
+                                total_size += data.len();
+                            }
+                        }
+                        Err(_) => {
+                            body_error = true;
+                            break;
+                        }
                     }
                 }
                 RequestStatsBuilder::default()
@@ -185,7 +192,7 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
 }
 
 impl HttpRequest {
-    fn build_request(&self) -> Request<Body> {
+    fn build_request(&self) -> Request<Full<Bytes>> {
         let uri = &self.url[thread_rng().gen_range(0..self.url.len())];
         let mut request_builder = Request::builder()
             .method(self.method.clone())
@@ -204,11 +211,11 @@ impl HttpRequest {
 
         if !self.body.is_empty() {
             request_builder
-                .body(Body::from(self.body.clone()))
+                .body(Full::new(self.body.clone()))
                 .expect("Error building Request")
         } else {
             request_builder
-                .body(Body::empty())
+                .body(Full::new(Bytes::new()))
                 .map_err(|e| {
                     error!(
                         "Cannot create url {}, headers: {:?}. Error: {}",
