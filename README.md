@@ -6,8 +6,8 @@
 Overview
 ========
 
-Benchmarking tool for network services. Currently, limited to HTTP only (H1 or H2, over TCP or TLS).
-However, it's easily extendable to other protocols.
+Benchmarking tool for network services. Currently supports HTTP (H1 or H2, over TCP or TLS)
+and HTTP/3 (over QUIC). It's easily extendable to other protocols.
 
 It works in the following modes:
 
@@ -60,12 +60,18 @@ Then:
 $ cargo install perf-gauge --features full
 ```
 
+To install with HTTP/3 (QUIC) support:
+```
+$ cargo install perf-gauge --features full,http3
+```
+
 Supported features:
 
 * `default` - if no features specified, only `http` traffic is supported
 * `tls-native` - TLS support (based on `OpenSSL`)
 * `tls-boring` - TLS support (based on `BoringSSL`). Doesn't support self-signed certs.
 * `report-to-prometheus` - to support `Prometheus` for metric collection
+* `http3` - HTTP/3 (QUIC) support via `quinn`/`rustls`. No OpenSSL dependency.
 * `full` - `report-to-prometheus` + `tls-native`
 * `full-boring` - `report-to-prometheus` + `tls-boring`
 
@@ -159,6 +165,8 @@ OPTIONS:
                                      \"Name:Value1:Value2:Value3\". In this case a random one is
                                      chosen for each request
         --http2_only                 Enforce HTTP/2 only
+        --http3                      Use HTTP/3 (QUIC). Requires https:// URLs
+                                     (needs --features http3)
         --ignore_cert                Allow self signed certificates
     -M, --method <METHOD>            Method. By default GET
     -V, --version                    Print version information
@@ -207,3 +215,28 @@ $ perf-gauge --concurrency 10 \
 * `--name nginx-direct` - the name of the test (used for reporting metrics to `prometheus`)
 * `--prometheus $PROMETHEUS_HOST:9091` - push-gateway `host:port` to send metrics to Prometheus.
 * `http http://local-nginx.org/10kb --conn_reuse` - run in `https` mode to the given endpoint, reusing connections and not checking the certificate. 
+
+HTTP/3 (QUIC) Benchmarking
+==========================
+
+HTTP/3 uses QUIC as its transport, providing lower latency connection establishment
+and built-in TLS 1.3. To benchmark an HTTP/3 endpoint:
+
+```bash
+$ perf-gauge --concurrency 10 \
+               --duration 1m \
+               http --http3 https://my-h3-service.com:443/endpoint
+```
+
+With rate control and self-signed certificates:
+
+```bash
+$ perf-gauge --concurrency 8 \
+               --rate 500 --rate_step 500 --rate_max 5000 \
+               --duration 1m \
+               http --http3 --ignore_cert https://localhost:8443/10kb
+```
+
+> **Note**: HTTP/3 requires `https://` URLs (QUIC always uses TLS).
+> The `--http3` flag cannot be combined with `--http2_only`.
+> Build with `--features http3` to enable this functionality.
