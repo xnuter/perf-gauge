@@ -34,8 +34,7 @@ impl RateLimiter {
             leaky_bucket: Some(Arc::new(
                 InnerRateLimiter::builder()
                     .initial(0)
-                    // to compensate overhead let's add a bit to the rate
-                    .refill((amount * 1.01) as usize)
+                    .refill(amount as usize)
                     .interval(interval)
                     .max(amount as usize * 100)
                     .build(),
@@ -60,14 +59,16 @@ impl RateLimiter {
 
     fn rate_to_refill_amount_and_duration(rate_per_second: f64) -> (f64, Duration) {
         if rate_per_second > 1. {
-            let mut rate = rate_per_second as usize;
-            let mut int_ms = 1000;
+            // Scale by 10 to preserve one decimal place of precision.
+            // E.g. 1.5 rps -> 15 per 10_000ms -> gcd -> 3 per 2000ms
+            let rate_scaled = (rate_per_second * 10.0).round() as usize;
+            let interval_scaled = 10_000_usize; // 10 * 1000ms
 
-            let gcd = RateLimiter::gcd(rate, int_ms);
-            rate /= gcd;
-            int_ms /= gcd;
+            let gcd = RateLimiter::gcd(rate_scaled, interval_scaled);
+            let amount = rate_scaled / gcd;
+            let interval_ms = interval_scaled / gcd;
 
-            (rate as f64, Duration::from_millis(int_ms as u64))
+            (amount as f64, Duration::from_millis(interval_ms as u64))
         } else {
             (
                 1.,
