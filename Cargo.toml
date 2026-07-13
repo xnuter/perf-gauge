@@ -31,6 +31,7 @@ regex = "1.10"
 rand = "0.8"
 futures-util = "0.3"
 hyper = { version = "0.14", features = ["full"] }
+bytes = { version = "1", features = ["serde"] }
 prometheus = { version = "0.13", features = ["push"], default-features = false, optional = true }
 hyper-tls = {version = "0.5", default-features = false, optional = true }
 native-tls = {version = "0.2", default-features = false, optional = true }

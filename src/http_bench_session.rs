@@ -10,6 +10,7 @@ use crate::metrics::{RequestStats, RequestStatsBuilder};
 use async_trait::async_trait;
 #[cfg(feature = "tls-boring")]
 use boring::ssl::{SslConnector, SslMethod};
+use bytes::Bytes;
 use core::fmt;
 use derive_builder::Builder;
 use futures_util::StreamExt;
@@ -23,7 +24,6 @@ use hyper_tls::HttpsConnector;
 use log::error;
 use rand::{thread_rng, Rng};
 use serde::Deserialize;
-use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
 #[cfg(feature = "tls-native")]
@@ -45,12 +45,25 @@ pub struct HttpClientConfig {
 #[builder(build_fn(validate = "Self::validate"))]
 pub struct HttpRequest {
     url: Vec<String>,
-    #[builder(default = "\"GET\".to_string()")]
-    method: String,
+    #[builder(default = "Method::GET")]
+    #[serde(deserialize_with = "deserialize_method", default = "default_method")]
+    method: Method,
     #[builder(default)]
     headers: Vec<(String, Vec<String>)>,
     #[builder(default)]
-    body: Vec<u8>,
+    body: Bytes,
+}
+
+fn default_method() -> Method {
+    Method::GET
+}
+
+fn deserialize_method<'de, D>(deserializer: D) -> Result<Method, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Method::from_bytes(s.as_bytes()).map_err(serde::de::Error::custom)
 }
 
 #[derive(Builder, Deserialize, Clone)]
@@ -171,16 +184,16 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
 
 impl HttpRequest {
     fn build_request(&self) -> Request<Body> {
-        let method =
-            Method::from_str(&self.method.clone()).expect("Method must be valid at this point");
-
         let uri = &self.url[thread_rng().gen_range(0..self.url.len())];
-        let mut request_builder = Request::builder().method(method).uri(uri.clone());
+        let mut request_builder = Request::builder()
+            .method(self.method.clone())
+            .uri(uri.as_str());
 
         if !self.headers.is_empty() {
             for (key, value) in self.headers.iter() {
                 request_builder = request_builder.header(
-                    HeaderName::from_str(key).expect("Header name must be valid at this point"),
+                    HeaderName::from_bytes(key.as_bytes())
+                        .expect("Header name must be valid at this point"),
                     HeaderValue::from_str(&value[thread_rng().gen_range(0..value.len())])
                         .expect("Header value must be valid at this point"),
                 );
@@ -195,7 +208,7 @@ impl HttpRequest {
             request_builder
                 .body(Body::empty())
                 .map_err(|e| {
-                    println!(
+                    error!(
                         "Cannot create url {}, headers: {:?}. Error: {}",
                         uri, self.headers, e
                     );
@@ -208,11 +221,8 @@ impl HttpRequest {
 impl HttpRequestBuilder {
     /// Validate request is going to be built from the given settings
     fn validate(&self) -> Result<(), String> {
-        if let Some(ref m) = self.method {
-            Method::from_str(m).map_err(|e| e.to_string()).map(|_| ())
-        } else {
-            Ok(())
-        }
+        // Method is already parsed as Method type, so validation is done at construction time
+        Ok(())
     }
 }
 
@@ -223,7 +233,7 @@ impl fmt::Display for HttpRequest {
             "Requests={}, first request={}, method={}, headers={:?}, body size={}",
             self.url.len(),
             self.url[0],
-            self.method,
+            self.method.as_str(),
             self.headers,
             self.body.len()
         )
@@ -242,6 +252,8 @@ mod tests {
     use crate::http_bench_session::{
         HttpBenchAdapter, HttpBenchAdapterBuilder, HttpClientConfigBuilder, HttpRequestBuilder,
     };
+    use bytes::Bytes;
+    use hyper::Method;
     use mockito::Matcher::Exact;
     use std::time::Duration;
     use tokio::time::timeout;
@@ -308,12 +320,12 @@ mod tests {
             .request(
                 HttpRequestBuilder::default()
                     .url(vec![format!("{url}/1")])
-                    .method("PUT".to_string())
+                    .method(Method::PUT)
                     .headers(vec![
                         ("x-header".to_string(), vec!["value1".to_string()]),
                         ("x-another-header".to_string(), vec!["value2".to_string()]),
                     ])
-                    .body("abcd".as_bytes().to_vec())
+                    .body(Bytes::from_static(b"abcd"))
                     .build()
                     .unwrap(),
             )
@@ -351,12 +363,12 @@ mod tests {
             .request(
                 HttpRequestBuilder::default()
                     .url(vec![format!("{url}/1")])
-                    .method("POST".to_string())
+                    .method(Method::POST)
                     .headers(vec![
                         ("x-header".to_string(), vec!["value1".to_string()]),
                         ("x-another-header".to_string(), vec!["value2".to_string()]),
                     ])
-                    .body("abcd".as_bytes().to_vec())
+                    .body(Bytes::from_static(b"abcd"))
                     .build()
                     .unwrap(),
             )
@@ -402,7 +414,7 @@ mod tests {
             .request(
                 HttpRequestBuilder::default()
                     .url(vec![format!("{url}/1")])
-                    .method("GET".to_string())
+                    .method(Method::GET)
                     .headers(vec![(
                         "x-header".to_string(),
                         vec!["value11".to_string(), "value12".to_string()],

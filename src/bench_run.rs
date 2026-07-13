@@ -38,6 +38,12 @@ pub trait BenchmarkProtocolAdapter {
 }
 
 impl BenchRun {
+    /// Reset the global stop flag before each batch to prevent
+    /// a fatal error in one batch from silently skipping all subsequent batches.
+    pub fn reset_stop_flag() {
+        STOP_ON_FATAL.store(false, Ordering::Relaxed);
+    }
+
     pub fn from_request_limit(
         index: usize,
         max_requests: usize,
@@ -114,12 +120,10 @@ impl BenchRun {
             let fatal_error = match timed_request {
                 Ok(request_stats) => {
                     let failed = request_stats.fatal_error;
-                    metrics_channel
-                        .try_send(request_stats)
-                        .map_err(|e| {
-                            error!("Error sending metrics: {e}");
-                        })
-                        .unwrap_or_default();
+                    if metrics_channel.send(request_stats).await.is_err() {
+                        error!("Metrics channel closed");
+                        break;
+                    }
                     failed
                 }
                 Err(_) => true,
