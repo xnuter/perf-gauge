@@ -150,17 +150,19 @@ impl BenchmarkProtocolAdapter for HttpBenchAdapter {
 
                 let mut stream = r.into_body();
                 let mut total_size = 0;
+                let mut body_error = false;
                 while let Some(item) = stream.next().await {
                     if let Ok(bytes) = item {
                         total_size += bytes.len();
                     } else {
+                        body_error = true;
                         break;
                     }
                 }
                 RequestStatsBuilder::default()
                     .bytes_processed(total_size)
                     .status(status)
-                    .is_success(success)
+                    .is_success(success && !body_error)
                     .duration(Instant::now().duration_since(start))
                     .fatal_error(fatal_error)
                     .build()
