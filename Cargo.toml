@@ -27,11 +27,12 @@ async-trait = "0.1"
 bytesize = "1.3"
 humantime = "2.1"
 rand = "0.8"
-futures-util = "0.3"
-hyper = { version = "0.14", features = ["full"] }
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "http2", "tokio"] }
+http-body-util = "0.1"
 bytes = { version = "1", features = ["serde"] }
 prometheus = { version = "0.13", features = ["push"], default-features = false, optional = true }
-hyper-tls = {version = "0.5", default-features = false, optional = true }
+hyper-tls = {version = "0.6", default-features = false, optional = true }
 native-tls = {version = "0.2", default-features = false, optional = true }
 tokio-native-tls = {version = "0.3", default-features = false, optional = true }
 hyper-boring = {version = "5.0", default-features = false, optional = true }
