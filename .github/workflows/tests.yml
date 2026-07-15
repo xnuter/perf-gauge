@@ -26,4 +26,8 @@ jobs:
       run: cargo test --verbose --features full
     - name: Run tests tls
       run: cargo test --verbose --features tls-native
+    - name: Build http3
+      run: cargo build --verbose --features http3
+    - name: Run tests http3
+      run: cargo test --verbose --features http3
 

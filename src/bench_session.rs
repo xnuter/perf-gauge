@@ -126,14 +126,15 @@ impl BenchBatch {
             let bench_protocol_adapter = self.mode.clone();
             let metrics_channel = metrics_sender.clone();
             concurrent_clients.push(tokio::spawn(async move {
-                bench_run
-                    .send_load(
-                        match bench_protocol_adapter.as_ref() {
-                            BenchmarkMode::Http(http_bench_session) => http_bench_session,
-                        },
-                        metrics_channel,
-                    )
-                    .await
+                match bench_protocol_adapter.as_ref() {
+                    BenchmarkMode::Http(adapter) => {
+                        bench_run.send_load(adapter, metrics_channel).await
+                    }
+                    #[cfg(feature = "http3")]
+                    BenchmarkMode::Http3(adapter) => {
+                        bench_run.send_load(adapter, metrics_channel).await
+                    }
+                }
             }));
         }
 

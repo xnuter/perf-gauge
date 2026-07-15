@@ -1,4 +1,6 @@
 use crate::bench_session::{BenchSession, BenchSessionBuilder, RateLadder, RateLadderBuilder};
+#[cfg(feature = "http3")]
+use crate::h3_bench_session::{H3BenchAdapter, H3BenchAdapterBuilder};
 /// Copyright 2020 Developers of the perf-gauge project.
 ///
 /// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -27,6 +29,8 @@ use tokio::io;
 #[derive(Clone)]
 pub enum BenchmarkMode {
     Http(HttpBenchAdapter),
+    #[cfg(feature = "http3")]
+    Http3(H3BenchAdapter),
 }
 
 #[derive(Clone, Builder)]
@@ -125,6 +129,9 @@ struct HttpOptions {
     /// Enforce HTTP/2 only.
     #[arg(long = "http2_only")]
     http2_only: bool,
+    /// Use HTTP/3 (QUIC). Requires https:// URLs.
+    #[arg(long = "http3")]
+    http3: bool,
 }
 
 impl BenchmarkConfig {
@@ -257,6 +264,49 @@ impl BenchmarkConfig {
                     exit(-1);
                 }
 
+                let mut request_builder = HttpRequestBuilder::default();
+                request_builder
+                    .url(config.target.clone())
+                    .method(
+                        Method::from_bytes(
+                            config
+                                .method
+                                .as_ref()
+                                .map_or("GET", |s| s.as_str())
+                                .as_bytes(),
+                        )
+                        .expect("Invalid HTTP method"),
+                    )
+                    .headers(
+                        config
+                            .header
+                            .iter()
+                            .map(|s| {
+                                let mut split = s.split(':');
+                                (
+                                    split.next().expect("Header name is missing").to_string(),
+                                    split.map(String::from).collect::<Vec<String>>(),
+                                )
+                            })
+                            .collect(),
+                    )
+                    .body(BenchmarkConfig::generate_body(config));
+
+                #[cfg(feature = "http3")]
+                if config.http3 {
+                    if config.http2_only {
+                        eprintln!("Cannot use --http2_only with --http3");
+                        std::process::exit(1);
+                    }
+                    return BenchmarkConfig::build_h3_mode(config, request_builder);
+                }
+
+                #[cfg(not(feature = "http3"))]
+                if config.http3 {
+                    eprintln!("HTTP/3 is not enabled. Compile with --features http3");
+                    std::process::exit(1);
+                }
+
                 let http_config = HttpBenchAdapterBuilder::default()
                     .config(
                         HttpClientConfigBuilder::default()
@@ -267,44 +317,29 @@ impl BenchmarkConfig {
                             .build()
                             .expect("HttpClientConfigBuilder failed"),
                     )
-                    .request(
-                        HttpRequestBuilder::default()
-                            .url(config.target.clone())
-                            .method(
-                                Method::from_bytes(
-                                    config
-                                        .method
-                                        .as_ref()
-                                        .map_or("GET", |s| s.as_str())
-                                        .as_bytes(),
-                                )
-                                .expect("Invalid HTTP method"),
-                            )
-                            .headers(
-                                config
-                                    .header
-                                    .iter()
-                                    .map(|s| {
-                                        let mut split = s.split(':');
-                                        (
-                                            split
-                                                .next()
-                                                .expect("Header name is missing")
-                                                .to_string(),
-                                            split.map(String::from).collect::<Vec<String>>(),
-                                        )
-                                    })
-                                    .collect(),
-                            )
-                            .body(BenchmarkConfig::generate_body(config))
-                            .build()
-                            .expect("HttpRequestBuilder failed"),
-                    )
+                    .request(request_builder.build().expect("HttpRequestBuilder failed"))
                     .build()
                     .expect("BenchmarkModeBuilder failed");
                 BenchmarkMode::Http(http_config)
             }
         }
+    }
+
+    #[cfg(feature = "http3")]
+    fn build_h3_mode(config: &HttpOptions, request: HttpRequestBuilder) -> BenchmarkMode {
+        let h3_config = H3BenchAdapterBuilder::default()
+            .config(
+                HttpClientConfigBuilder::default()
+                    .ignore_cert(config.ignore_cert)
+                    .conn_reuse(config.conn_reuse)
+                    .stop_on_errors(config.error_stop.clone())
+                    .build()
+                    .expect("HttpClientConfigBuilder failed"),
+            )
+            .request(request.build().expect("HttpRequestBuilder failed"))
+            .build()
+            .expect("H3BenchAdapterBuilder failed");
+        BenchmarkMode::Http3(h3_config)
     }
 
     fn generate_body(args: &HttpOptions) -> Bytes {
@@ -373,6 +408,10 @@ impl fmt::Display for BenchmarkMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BenchmarkMode::Http(mode) => {
+                writeln!(f, "{mode}")
+            }
+            #[cfg(feature = "http3")]
+            BenchmarkMode::Http3(mode) => {
                 writeln!(f, "{mode}")
             }
         }

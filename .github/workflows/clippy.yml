@@ -20,6 +20,9 @@ jobs:
       - name: Run cargo clippy
         run: cargo clippy --features full --tests -- -D warnings
 
+      - name: Run cargo clippy (http3)
+        run: cargo clippy --features http3 --tests -- -D warnings
+
   rustfmt:
     name: Format
     runs-on: ubuntu-latest

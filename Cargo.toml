@@ -31,12 +31,20 @@ hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "http2", "tokio"] }
 http-body-util = "0.1"
 bytes = { version = "1", features = ["serde"] }
+futures-util = { version = "0.3", optional = true }
 prometheus = { version = "0.13", features = ["push"], default-features = false, optional = true }
 hyper-tls = {version = "0.6", default-features = false, optional = true }
 native-tls = {version = "0.2", default-features = false, optional = true }
 tokio-native-tls = {version = "0.3", default-features = false, optional = true }
 hyper-boring = {version = "5.0", default-features = false, optional = true }
 boring = {version = "5.1", default-features = false, optional = true }
+h3 = { version = "0.0.8", optional = true }
+h3-quinn = { version = "0.0.10", optional = true }
+quinn = { version = "0.11", default-features = false, features = ["rustls-ring", "runtime-tokio"], optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"], optional = true }
+rustls-pki-types = { version = "1", optional = true }
+webpki-roots = { version = "0.26", optional = true }
+url = { version = "2", optional = true }
 
 [dev-dependencies]
 mockito = "1.5"
@@ -50,3 +58,4 @@ tls-native = ["tls", "native-tls", "tokio-native-tls"]
 tls-boring = ["tls", "hyper-boring", "boring"]
 full = ["report-to-prometheus", "tls-native"]
 full-boring = ["report-to-prometheus", "tls-boring"]
+http3 = ["h3", "h3-quinn", "quinn", "rustls", "rustls-pki-types", "webpki-roots", "futures-util", "url"]

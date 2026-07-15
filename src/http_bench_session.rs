@@ -32,13 +32,14 @@ use std::time::Instant;
 use tokio_native_tls::TlsConnector;
 
 #[derive(Builder, Deserialize, Clone, Debug)]
+#[allow(dead_code)]
 pub struct HttpClientConfig {
     #[builder(default)]
-    ignore_cert: bool,
+    pub ignore_cert: bool,
     #[builder(default)]
-    conn_reuse: bool,
+    pub conn_reuse: bool,
     #[builder(default)]
-    http2_only: bool,
+    pub http2_only: bool,
     #[builder(default)]
     pub stop_on_errors: Vec<u16>,
 }
@@ -126,7 +127,7 @@ impl HttpBenchAdapter {
 impl BenchmarkProtocolAdapter for HttpBenchAdapter {
     type Client = Client<ProtocolConnector, Full<Bytes>>;
 
-    fn build_client(&self) -> Result<Self::Client, String> {
+    async fn build_client(&self) -> Result<Self::Client, String> {
         Ok(Client::builder(TokioExecutor::new())
             .http2_only(self.config.http2_only)
             .pool_max_idle_per_host(if !self.config.conn_reuse {
@@ -225,6 +226,35 @@ impl HttpRequest {
                 .expect("Error building Request")
         }
     }
+
+    /// Get the first URL (for connection establishment in HTTP/3).
+    #[cfg(feature = "http3")]
+    pub fn first_url(&self) -> &str {
+        &self.url[0]
+    }
+
+    /// Get request parts for building protocol-specific requests.
+    /// Returns (url, method, headers, body) with a random URL and random header values selected.
+    #[cfg(feature = "http3")]
+    pub fn request_parts(&self) -> (&str, Method, Vec<(&str, &str)>, Bytes) {
+        use rand::{thread_rng, Rng};
+
+        let url = &self.url[thread_rng().gen_range(0..self.url.len())];
+        let method = self.method.clone();
+
+        let headers: Vec<(&str, &str)> = self
+            .headers
+            .iter()
+            .map(|(key, values)| {
+                let value = &values[thread_rng().gen_range(0..values.len())];
+                (key.as_str(), value.as_str())
+            })
+            .collect();
+
+        let body = self.body.clone();
+
+        (url, method, headers, body)
+    }
 }
 
 impl HttpRequestBuilder {
@@ -299,7 +329,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{stats:?}");
@@ -342,7 +372,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{stats:?}");
@@ -385,7 +415,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{stats:?}");
@@ -435,7 +465,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
 
         for _ in 0..128 {
             http_bench.send_request(&client).await;
@@ -471,7 +501,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let stats = http_bench.send_request(&client).await;
 
         println!("{stats:?}");
@@ -510,7 +540,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let client = http_bench.build_client().expect("Client is built");
+        let client = http_bench.build_client().await.expect("Client is built");
         let result = timeout(Duration::from_secs(1), http_bench.send_request(&client)).await;
 
         let failed = match result {

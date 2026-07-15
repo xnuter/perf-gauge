@@ -8,6 +8,8 @@
 mod bench_run;
 mod bench_session;
 mod configuration;
+#[cfg(feature = "http3")]
+mod h3_bench_session;
 mod http_bench_session;
 mod metrics;
 #[cfg(feature = "report-to-prometheus")]
